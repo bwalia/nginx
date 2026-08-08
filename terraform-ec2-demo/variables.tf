@@ -1,20 +1,8 @@
 # AWS Config
 #
-# Credentials are not stored in this repo. Supply them at runtime via
-# terraform.tfvars (gitignored), TF_VAR_ environment variables, or the
-# standard AWS credential chain. See terraform.tfvars.example.
-
-variable "aws_access_key" {
-  description = "AWS access key ID"
-  type        = string
-  sensitive   = true
-}
-
-variable "aws_secret_key" {
-  description = "AWS secret access key"
-  type        = string
-  sensitive   = true
-}
+# Credentials are deliberately not modelled as Terraform variables. They
+# come from the AWS credential chain, sourced from GitHub Actions secrets
+# in CI and from your local profile or environment otherwise.
 
 variable "aws_region" {
   description = "AWS region to deploy into"

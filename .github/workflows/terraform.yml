@@ -1,0 +1,37 @@
+name: Terraform
+
+on:
+  push:
+    branches: [main]
+    paths: ['terraform-ec2-demo/**', '.github/workflows/terraform.yml']
+  pull_request:
+    paths: ['terraform-ec2-demo/**', '.github/workflows/terraform.yml']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: terraform-ec2-demo
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      # Credentials come from repository secrets and are exported as
+      # environment variables for the AWS provider to pick up. They are
+      # masked in logs and never written to disk.
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+
+      - run: terraform fmt -check
+      - run: terraform init
+      - run: terraform validate
+      - run: terraform plan -input=false
