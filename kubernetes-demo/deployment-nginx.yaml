@@ -1,0 +1,19 @@
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: nginx-8081-deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx8081
+  replicas: 2 # tells deployment to run 2 pods matching the template
+  template:
+    metadata:
+      labels:
+        app: nginx8081
+    spec:
+      containers:
+      - name: nginx81
+        image: nginx:1.11-alpine
+        ports:
+        - containerPort: 8081

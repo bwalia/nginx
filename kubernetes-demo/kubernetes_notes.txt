@@ -1,0 +1,291 @@
+Kubernetes Architecture
+
+Container Runtime Engine
+
+Master nodes
+
+kube-apiserver
+ETCD cluster
+Kube-Scheduler
+Kube Controller Manager
+
+Worker nodes
+kubelet
+kube-proxy
+
+
+Find POD running your app say mongo
+POD=`kubectl get pods -l app=mongo | grep Running | grep 1/1 | awk '{print $1}'`
+POD=`kubectl get pods -l app=matrixcx | grep Running | grep 1/1 | awk '{print $1}'`
+echo $POD
+mongo-85764f44df-fwfwq
+Find NODE running your app say mongo
+NODE=`kubectl get pods -l app=mongo -o wide | grep -v NAME | awk '{print $7}'`
+echo $NODE
+ip-192-168-16-18.eu-west-1.compute.internal
+
+ssh into POD
+kubectl exec -it $POD bash
+kubectl exec -it mongo-85764f44df-fwfwq bash
+https://stackoverflow.com/questions/55043159/how-to-enter-a-pod-as-root
+
+copy file
+kubectl cp /tmp/test mongo-85764f44df-fwfwq:/tmp/test
+
+
+Step 1
+
+https://docs.docker.com/docker-for-mac/
+
+Step 2
+
+https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-macos
+Windows
+https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-windows
+
+Step 3
+
+Setup dashboard in kubernetes:
+
+kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.1/src/deploy/recommended/kubernetes-dashboard.yaml
+
+https://github.com/kubernetes/dashboard/blob/master/docs/user/access-control/creating-sample-user.md
+
+eyJhbGciOiJSUzI1NiIsImtpZCI6IjhvSGJHZDJJVlRIV0UzSk5ZNXk1ODdmRkJuWFcxSEktVjk3UFZMUXhSVTQifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC10b2tlbi12OHFkNCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6IjBhMGQxNDc2LTc4ZTgtNDg5Yi1iNDNkLTA4OTFhODU1NTZmMyIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZCJ9.q9HQIfpYxsUeZAiOS0pj7awexWyJGE1Q69bKGV9geEK0VusfQihpygUpDiD6sK9-RbE5lk_LlOxs5vAUHFVzHd90jYItFjSS4-viGk0itAUBgY3f_axYoUv5fd9EKbODRPS7Ki3NQY2e5JyuW-Q1AMaYNipoPB4r_oRUcJ20tE9I01gZG6KRgzxAiBFzCwhDJWy2AH-0XjoemneXltX8BvDTvAj0RWZrh8tfeBwtBHKZa511XMSBv0s9mGQUEnmqnsJlo4D9r9ViHUFLcoEha_DkFrzGor2xj5x2LFTa0fdeil3HnJaM5iMrTZH_aWmZ4PPuYZrOEC3_AOvCuXWAeQ
+
+Step 4
+
+Deployment nginx
+
+https://kubernetes.io/docs/tasks/run-application/run-stateless-application-deployment/
+
+kubectl apply -f deployment.yaml
+kubectl apply -f https://k8s.io/examples/application/deployment.yaml
+
+kubectl describe deployment nginx-deployment
+
+
+Step 5
+
+kubectl apply -f https://k8s.io/examples/application/deployment-scale.yaml
+
+Step 6
+Exposing
+https://kubernetes.io/docs/concepts/services-networking/connect-applications-service/
+
+Step 7
+Strong Simple SSL
+https://kubernetes.io/blog/2015/07/strong-simple-ssl-for-kubernetes/
+
+Step 8
+Managing workloads
+https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+
+Step 9
+
+Pods
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=nginx-deployment-6bdc8cdf4-g4gxc
+KUBERNETES_SERVICE_PORT=443
+KUBERNETES_SERVICE_PORT_HTTPS=443
+KUBERNETES_PORT=tcp://10.96.0.1:443
+KUBERNETES_PORT_443_TCP=tcp://10.96.0.1:443
+KUBERNETES_PORT_443_TCP_PROTO=tcp
+KUBERNETES_PORT_443_TCP_PORT=443
+KUBERNETES_PORT_443_TCP_ADDR=10.96.0.1
+KUBERNETES_SERVICE_HOST=10.96.0.1
+NGINX_VERSION=1.17.0
+NJS_VERSION=0.3.2
+PKG_RELEASE=1~stretch
+HOME=/root
+
+kubectl exec nginx-deployment-6bdc8cdf4-g4gxc -- printenv | grep SERVICE
+
+Step 10
+
+expose deployment/nginx-deployment
+
+Step 11
+Securing SERVICE
+
+# Create a public private key pair
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /d/tmp/nginx.key -out /d/tmp/nginx.crt -subj "/CN=my-nginx/O=my-nginx"
+# Convert the keys to base64 encoding
+cat /d/tmp/nginx.crt | base64
+cat /d/tmp/nginx.key | base64
+
+apiVersion: "v1"
+kind: "Secret"
+metadata:
+  name: "nginxsecret"
+  namespace: "default"
+type: kubernetes.io/tls
+data:
+  tls.crt: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJBQ0NRQ2RiUVdxamgrb0F6QU5CZ2txaGtpRzl3MEJBUXNGQURBbU1SRXdEd1lEVlFRRERBaHQKZVMxdVoybHVlREVSTUE4R0ExVUVDZ3dJYlhrdGJtZHBibmd3SGhjTk1Ua3hNakE0TVRNd09UQTJXaGNOTWpBeApNakEzTVRNd09UQTJXakFtTVJFd0R3WURWUVFEREFodGVTMXVaMmx1ZURFUk1BOEdBMVVFQ2d3SWJYa3RibWRwCmJuZ3dnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDeG1aR28zUG9pU3VHekYrV08KekpzUHNkUk5BSDNITFk1d1paOVF6WkZ0TmpaaW1LcGVCdlRZdVJyblptQ2VQZEx2RnBkUk8ydEFpT3Z6czlyUwpFZmJVL1dLUFVyZ21mdjNTSm5pWWROckJncmlRYzdMcXVpQVhCQjFBbEV6VDNOQlNZZ0UxcGlzS1c1VHYydFRZCko1eTB6TjRXRHFtYzhnQ0JnZ1VmRjlCN1BZK3VsWmRBaHdHRUdZd2dkdC9XL2NqZCtla1pGMHBiK3lXQllsNXkKNldqZmV2cWFMR2g1VmNtZnBIYnVrbDJwYzBESSsyY0xzQ1M1OWJuL1AxL3JxZUU2Z0ppM1FMajg2czBlQzJnTwpQVXRZak9leTY0ODZTWTVyRXVEVXhORXlMeEJXS2FrMFNKbVM2L1ZxT0IwTzBxTTFLS3AveEZndEJQd25ncFJEClpwZXZBZ01CQUFFd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFHdXIyY0lkSWxueXpRbmNOcjRIY1piOW1FR3oKUFdwRjJveE96cElJYjhBM3JJdDZEeVJVQjQrTlNmR1lKZWdyZSszWG1qTGFpZTNzTlErRjU2N083dERhcXFvVwo4bWxneDI3RFlZK3dBYlpHMk00b1BETHg1dzdVeWpKMU9iQXpKb2s3NGp2WHRDVGdOaU9EaDVnbFM4endWUDhtCm9mZllpY0kzdGgyb2V4ZnhDWnRFRW14YXE2WGs3Y09lNWNtb3Jad3ZkU1dnVUlEeTJWT2dyZWVBVG40WG5tdnAKd0NtNUlKZS9ob3JmeFpKcy9nWXUrZnNnYldyTTJBRzJ4ei9iWXB3Q1BRczZZUXNXTmhmVmJGOGtwUEFNaURScQpNR0dWTHRMVE1Ka1ZvSmJqM3JsdWxsdzUrd2d3cC9XYlJxczcyc2RHcE9teGUrMDNXS0NnNTFaZHprVT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo"
+  tls.key: "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktjd2dnU2pBZ0VBQW9JQkFRQ3htWkdvM1BvaVN1R3oKRitXT3pKc1BzZFJOQUgzSExZNXdaWjlRelpGdE5qWmltS3BlQnZUWXVScm5abUNlUGRMdkZwZFJPMnRBaU92egpzOXJTRWZiVS9XS1BVcmdtZnYzU0puaVlkTnJCZ3JpUWM3THF1aUFYQkIxQWxFelQzTkJTWWdFMXBpc0tXNVR2CjJ0VFlKNXkwek40V0RxbWM4Z0NCZ2dVZkY5QjdQWSt1bFpkQWh3R0VHWXdnZHQvVy9jamQrZWtaRjBwYit5V0IKWWw1eTZXamZldnFhTEdoNVZjbWZwSGJ1a2wycGMwREkrMmNMc0NTNTlibi9QMS9ycWVFNmdKaTNRTGo4NnMwZQpDMmdPUFV0WWpPZXk2NDg2U1k1ckV1RFV4TkV5THhCV0thazBTSm1TNi9WcU9CME8wcU0xS0twL3hGZ3RCUHduCmdwUkRacGV2QWdNQkFBRUNnZ0VBT29TWlJBU2J2cFRoelRzQWZvN1lRTkdkWEVuZko3UFJEU1BPM0xiL1JmYm8KOEkvUkF1NVQydDBUQ2svbllmeUk5aEtCaFZpSXZGamhOZ2w2L21EQTdla1hncFlFNjFwSWsrZnRNSDdBWGFhTwozYm5ocUFudjdPV0VKZlUzWTArTXJMaHlJWlZBOVVhN3lsUldjV3FMN2Q3YkJuV0tXWlk3cUhDSTgzZkxUKytwCmxhNWFuaURvaFg0NlJMQTlEK2F4TjVIdTNUM3Y4YU9oS3ljZjJvdDdGcjVVcWV6bDlFWUNNTFcvU2xzRDVNNnIKMVdSZmhZUlA1Q1pidS8rOXlmWTZ3bFpFMWQzdERsd3ZlR2pZbEtIbFArcGZUSG9WN3hRZCs3TlBRYkZkQ1U4WQowMTMwWGVTOTYxYTdMclg3cjJtS1pMVUY2em1NQkZ4Ly81MVVLd1hmb1FLQmdRRHNkRWExc0ZZdUpLU2ExUVBECkJsYnpVU21WdnFtWnArYnNIMHBDRFJ6a1Jvc25pdStpbEZVWi92aWJob1JBcUNWenAwanFNN1RRZVBtTDMzUzYKUTNwQlAxcG45WDRSeGNqK3p6Q0tWNzdENXJlM1o1WFVpS2d2aEtoNmY0eG9YOWloSUFSaS9wRVlocllWdUt2Kwp6MzhJWFNRUUZUN3EvcjR4c3RhKzk5eU94d0tCZ1FEQVI5anhUUmlpSzFVc2NPZnBrMURySmFMOGd5RXB2OTQ1CjYxTnNFWElSU3FiK1UraFhsSlByNUFKZ092UmNhSlJJemNLbHNxUFlYTE1QRzEwdDRFakw5UGpwNHAwaDc3bkUKWTl2SGJtN2JwR000L0dNTXNhZEpJdHlOcmhwV0R3N2dDeFFXWTFLQUh6MzUvcS9TTnpRQVdEbjN0cEVCajVQUwpRVXlMU29UbjJRS0JnR2VROGx1b05jY1dNNmJCZ0ZsT2tJMFlVbytOS0RudUNiNElZbjBWd3o3VkN5UXh2WTVIClRCTUwwNVpEVC9BRjlnbDNEdi9Oei9lejFSR0h1VmZRTUY4ZHdacGhNMnZUWnByODR2VGxRK0FJVVJXYTRFeHIKNHNhVll6bnNYZkpsY0x2NkN4SFZFSFplb3FoVzc3YTI2WndmTjZsM3RNdzI4ZFZRMExCcVhnZUhBb0dCQUtBUwpjQ0dhUERxdGRtL1Q0czJLRGFCbEtjV3I2TXpYNVVvMGhiTis1b1pNcnE4bDdWUVQ1ZjFJU1U0UlptTVQwUGEzCkRTZGlpNUpRd2VSK3RGaS8wZnF4aXhNeXkvdDNsaUJQdmFUT1k4M0lrYTNjTngxWFBGdmZnTnNXS09paUNwRXIKeCtKSGQyUWdIamxqOUwwOXBiWHZ2UHBpNjE3d1IzQ1BXZ2pQMWNzcEFvR0FFeU5zeHRNRFRwdWtWWkwxR0dCegpQcGk2MEtkQ0t6QmdGRlZNWG4yVTFoMEVJWTVMWHUrSldOL3JPVkdYWURkMWNYQW5nSlQzbllRYkJoWTA0TitpCkd2MjJFbHZKNlhHUTFoaWNWSE4rc0xOTUIyS3pZK2oyTnZ6YVREOE5RY3lMRzl0TzZrR0w1TkZNQmcyVE11blkKdHg3SGlFTjFzOU1RQ0NtcVd5TllwYkk9Ci0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K"
+
+
+kubectl delete deployments,svc my-nginx; kubectl create -f service/networking/nginx-secure-app.yaml
+
+Example to create deployment separately
+kubectl create deployment nginx --image=nginx
+
+
+
+Commands
+
+kubectl config current-context
+kubectl config use-context docker-for-desktop
+
+kubectl cluster-info
+kubectl cluster-info dump
+
+kubectl get nodes
+
+kubectl get pods --namespace=kube-system
+
+kubectl port-forward kubernetes-dashboard-5f7b999d65-tq6dk 8443:8443 --namespace=kube-system
+kubectl port-forward kubernetes-dashboard-5f7b999d65-tq6dk 6443:443 --namespace=kube-system
+eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC10b2tlbi1kYjRnciIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6IjBiNGE4YmQxLTE5NTktMTFlYS04NjFmLTAyNTAwMDAwMDAwMSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZCJ9.W--u6iZWLuicfKqfxNoBVwsWPx-Ma1lgzg-96Si2GDikI4ORC34a7Bid4-ohio61thl6eO1ALvFzyVKYAGrPVUGro9cSPlyh7XBaLtgu4IMfpqIkFh2MOmv0frVRWXUHhvg0A382xlmPb228rhp9yVSEwhmzafO1TLVV6xSLJyYV8Q0mCMhlmL8-10FFrg4UH3zcLOUYglpcea7KS-ZzhgZnFaI1qJ0L4-yLuxc1DrPmhmeAyW-FBalKOVnpuSJsHSvg6QnoU9vYkq0sM5ciyYIP07qiNZNRSuplyR1gDV-HLMN_IR9OkETWqt-Ft4iZ_UgxAdlj2R4GtovYYNKxEA
+Port forwarding: https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/#forward-a-local-port-to-a-port-on-the-pod
+
+Find token to login
+kubectl -n namespace describe secret $(kubectl -n namespace get secret | grep service-admin-account | awk '{print $1}')
+kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep eks-admin | awk '{print $1}')
+eyJhbGciOiJSUzI1NiIsImtpZCI6Im1iZVByUi1ieW53MUJsWmM1ci1WcDFHNUxTaG9ZUXJBbVVNZDBoSEg1WmMifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJla3MtYWRtaW4tdG9rZW4tOXhjZHciLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZWtzLWFkbWluIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiM2JmNTUxM2UtZjFkNi00Y2I4LWFjZjUtMDhmZDYwN2Q5OTU2Iiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOmVrcy1hZG1pbiJ9.kXpbaIPyrXoXoxzxcVZoKF7HnF1gq6XyTrfC8-x5EHF8AOI1vz6LfYHQnEIB7nnLRJ1W_r4N2MXUViqZTeeWRsnW55qdI8yLs81eWA4mzVIdaJ0FgRshYvDjaCQ3qDPmO19CpczIOY6-cDvk3MPhA5AxuntG6R2ZLBpkyOGCat4mTRcwvGbJDqgRvsZn7R10nNxVqZjdJuUIUuiK4FwWE-qYE4D8xppRGTlEnnA-svlzNjIXaK4bZ0vl0EkATIYbCLtheuGKmhDco_3R2yI0u4ly-QWc562YBsK7OlS-QNZOBteecNxYvZ3trYwvdlMxUuleyJTxYbBgUR6AT_6Z9g
+
+kubectl run hello-nginx --image=nginx --port=80
+kubectl scale --replicas=3 deployment/hello-nginx
+
+kubectl expose deployment hello-nginx --type=NodePort
+
+sudo kubectl port-forward svc/hello-nginx 80:80
+
+sudo kubectl port-forward svc/jenkins 8080:8080
+
+In real world exposing services to load balancer using Cloud provider such as GCP or AWS see https://kubernetes.io/docs/tutorials/stateless-application/expose-external-ip-address/
+
+
+Let's install Jenkins
+
+docker build -t ybushnev/my-jenkins-image:1.0 .
+
+
+kubectl delete services --all
+kubectl delete deployments --all
+kubectl delete pods --all
+docker system prune -a
+docker builder prune
+
+
+
+
+Namespaces
+
+kubectl config set-context docker-desktop --namespace=development
+
+
+
+
+
+k3s
+
+curl -sLS https://raw.githubusercontent.com/alexellis/k3sup/master/get.sh | sh
+
+[root@ip-172-31-33-136 ec2-user]# curl -sLS https://raw.githubusercontent.com/alexellis/k3sup/master/get.sh | sh
+which: no k3sup in (/sbin:/bin:/usr/sbin:/usr/bin)
+x86_64
+Downloading package https://github.com/alexellis/k3sup/releases/download/0.2.0/k3sup as /tmp/k3sup
+Download complete.
+
+Running as root - Attempting to move k3sup to /usr/local/bin
+New version of k3sup installed to /usr/local/bin
+
+
+
+
+[root@ip-172-31-33-136 ec2-user]# **cd /usr/local/bin**
+
+[root@ip-172-31-33-136 bin]# **export IP=54.159.112.255**
+
+[root@ip-172-31-33-136 bin]# **./k3sup install --ip $IP --user ec2-user**
+
+Public IP: 54.159.112.255
+ssh -i /root/.ssh/id_rsa ec2-user@54.159.112.255
+
+ssh: curl -sLS https://get.k3s.io | INSTALL_K3S_EXEC='server --tls-san 54.159.112.255' sh -
+[INFO]  Finding latest release
+[INFO]  Using v0.8.0 as release
+[INFO]  Downloading hash [https://github.com/rancher/k3s/releases/download/v0.8.0/sha256sum-amd64.txt](https://github.com/rancher/k3s/releases/download/v0.8.0/sha256sum-amd64.txt)
+[INFO]  Downloading binary [https://github.com/rancher/k3s/releases/download/v0.8.0/k3s](https://github.com/rancher/k3s/releases/download/v0.8.0/k3s)
+[INFO]  Verifying binary download
+[INFO]  Installing k3s to /usr/local/bin/k3s
+which: no kubectl in (/usr/local/bin:/usr/bin)
+[INFO]  Creating /usr/local/bin/kubectl symlink to k3s
+which: no crictl in (/usr/local/bin:/usr/bin)
+[INFO]  Creating /usr/local/bin/crictl symlink to k3s
+which: no ctr in (/usr/local/bin:/usr/bin)
+[INFO]  Creating /usr/local/bin/ctr symlink to k3s
+[INFO]  Creating killall script /usr/local/bin/k3s-killall.sh
+[INFO]  Creating uninstall script /usr/local/bin/k3s-uninstall.sh
+[INFO]  env: Creating environment file /etc/systemd/system/k3s.service.env
+[INFO]  systemd: Creating service file /etc/systemd/system/k3s.service
+[INFO]  systemd: Enabling k3s unit
+Created symlink from /etc/systemd/system/multi-user.target.wants/k3s.service to /etc/systemd/system/k3s.service.
+[INFO]  systemd: Starting k3s
+Result: [INFO]  Finding latest release
+[INFO]  Using v0.8.0 as release
+[INFO]  Downloading hash [https://github.com/rancher/k3s/releases/download/v0.8.0/sha256sum-amd64.txt](https://github.com/rancher/k3s/releases/download/v0.8.0/sha256sum-amd64.txt)
+[INFO]  Downloading binary [https://github.com/rancher/k3s/releases/download/v0.8.0/k3s](https://github.com/rancher/k3s/releases/download/v0.8.0/k3s)
+[INFO]  Verifying binary download
+[INFO]  Installing k3s to /usr/local/bin/k3s
+[INFO]  Creating /usr/local/bin/kubectl symlink to k3s
+[INFO]  Creating /usr/local/bin/crictl symlink to k3s
+[INFO]  Creating /usr/local/bin/ctr symlink to k3s
+[INFO]  Creating killall script /usr/local/bin/k3s-killall.sh
+[INFO]  Creating uninstall script /usr/local/bin/k3s-uninstall.sh
+[INFO]  env: Creating environment file /etc/systemd/system/k3s.service.env
+[INFO]  systemd: Creating service file /etc/systemd/system/k3s.service
+[INFO]  systemd: Enabling k3s unit
+[INFO]  systemd: Starting k3s
+which: no kubectl in (/usr/local/bin:/usr/bin)
+which: no crictl in (/usr/local/bin:/usr/bin)
+which: no ctr in (/usr/local/bin:/usr/bin)
+Created symlink from /etc/systemd/system/multi-user.target.wants/k3s.service to /etc/systemd/system/k3s.service.
+ssh: sudo cat /etc/rancher/k3s/k3s.yaml
+Saving file to: /usr/local/bin/kubeconfig
+
+
+[root@ip-172-31-33-136 bin]#** export KUBECONFIG=`pwd`/kubeconfig**
+[root@ip-172-31-33-136 bin]# **./kubectl get nodes**
+
+# Create a Deployment
+**./kubectl run nginx --image=nginx**
+
+# Create Service
+[root@ip-172-31-33-136 bin]# **./kubectl expose deployment nginx --port=80 --target-port=80**
+
+
+
+
+
+ssh-keygen -b 2048 -f ~/.ssh/k3sup -t rsa -q -N ""
+ssh-copy-id -i ~/.ssh/k3sup ec2-user@34.248.241.17 -i /Users/balinderwalia/Documents/aws_keys/nginx_aws_ireland.pem.txt
+
+
+k3s dashboard
+
+Managing the cluster can be difficult by cli for some users.
+However it’s possible to install inside the cluster the official kubernetes dashboard.
+To install it, simply launch the commands:
+$ kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+$ kubectl proxy
+#Then open in your browser this url: http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/
+To access the dashboard, you will need then to do the following command:
+$ kubectl create serviceaccount dashboard -n default
+$ kubectl create clusterrolebinding dashboard-admin -n default --clusterrole=cluster-admin --serviceaccount=default:dashboard
+serviceaccount/dashboard created
+clusterrolebinding.rbac.authorization.k8s.io/dashboard-admin created
+Then to retrieve your token do:
+$ kubectl get secret $(kubectl get serviceaccount dashboard -o jsonpath=”{.secrets[0].name}”) -o jsonpath=”{.data.token}” | base64 --decode
