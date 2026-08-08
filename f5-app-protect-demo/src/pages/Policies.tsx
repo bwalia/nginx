@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { bank } from '../data/banking'
 import { nginxSnippet, policies } from '../data/policies'
 
 export function Policies() {
@@ -9,13 +10,13 @@ export function Policies() {
   return (
     <>
       <section className="page-hero" style={{ marginBottom: '1rem' }}>
-        <div className="eyebrow">Policy explorer</div>
+        <div className="eyebrow">{bank.name} · Policy explorer</div>
         <h1 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', maxWidth: 'none' }}>
-          Declarative security as code
+          Service-scoped declarative policies
         </h1>
         <p className="lede">
-          Sample App Protect policies in JSON — baseline blocking, OpenAPI API guard,
-          transparent onboarding, and geo/IP intelligence.
+          PCI retail, FAPI Open Banking, card acquiring, SEPA/sanctions, wealth GraphQL,
+          and a transparent onboarding pack — versioned beside each service’s OpenAPI.
         </p>
       </section>
 
@@ -25,8 +26,8 @@ export function Policies() {
             key={p.id}
             type="button"
             role="tab"
-            aria-selected={activeId === p.id}
-            className={`chip ${activeId === p.id ? 'active' : ''}`}
+            aria-selected={activeId === p.id && !showNginx}
+            className={`chip ${activeId === p.id && !showNginx ? 'active' : ''}`}
             onClick={() => {
               setActiveId(p.id)
               setShowNginx(false)
@@ -40,17 +41,17 @@ export function Policies() {
           className={`chip ${showNginx ? 'active' : ''}`}
           onClick={() => setShowNginx(true)}
         >
-          nginx.conf
+          nginx.conf (OB edge)
         </button>
       </div>
 
       <div className="panel" style={{ padding: '1.25rem' }}>
         {showNginx ? (
           <>
-            <h2 style={{ fontSize: '1.25rem' }}>NGINX Plus snippet</h2>
+            <h2 style={{ fontSize: '1.25rem' }}>Open Banking edge snippet</h2>
             <p className="lede" style={{ fontSize: '0.92rem' }}>
-              Load the App Protect module, enable the policy file, and stream security
-              logs — then turn protection on per location.
+              Load App Protect, attach the FAPI policy, stream verbose logs to the Meridian
+              SIEM, and optionally enable behavioural DoS on AIS.
             </p>
             <pre className="snippet" style={{ marginTop: '1rem' }}>
               {nginxSnippet}
@@ -58,9 +59,21 @@ export function Policies() {
           </>
         ) : (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                flexWrap: 'wrap',
+              }}
+            >
               <div>
-                <h2 style={{ fontSize: '1.25rem' }}>{active.name}</h2>
+                <div className="tag" style={{ color: 'var(--teal)' }}>
+                  {active.service}
+                </div>
+                <h2 style={{ fontSize: '1.25rem', marginTop: '0.35rem' }}>
+                  {active.name}
+                </h2>
                 <p className="lede" style={{ fontSize: '0.92rem' }}>
                   {active.summary}
                 </p>

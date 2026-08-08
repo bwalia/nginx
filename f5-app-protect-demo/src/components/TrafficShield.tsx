@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const stages = ['Client', 'NGINX Plus', 'App Protect', 'Upstream']
+const stages = ['TPP / Client', 'NGINX Plus', 'App Protect', 'Bank upstream']
 
 export function TrafficShield() {
   const [active, setActive] = useState(0)
@@ -20,7 +20,7 @@ export function TrafficShield() {
   return (
     <div className="panel shield">
       <div className="shield-title">
-        <h3>Live inspection path</h3>
+        <h3>Meridian inspection path</h3>
         <span>sim · enforcement engine</span>
       </div>
       <div className="packets" aria-hidden>
@@ -43,8 +43,8 @@ export function TrafficShield() {
         ))}
       </div>
       <p className="lede" style={{ marginTop: '1.1rem', fontSize: '0.88rem' }}>
-        Clean traffic passes through. Signature hits, bots, schema violations, and
-        geo/IP intel decisions stop at the App Protect stage — without an extra proxy hop.
+        Licensed TPP and retail traffic pass. Stuffing bots, XXE in SEPA, forged JWTs,
+        and schema violations stop at App Protect — before core banking upstreams.
       </p>
     </div>
   )

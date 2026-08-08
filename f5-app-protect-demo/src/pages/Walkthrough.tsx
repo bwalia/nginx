@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { bank } from '../data/banking'
 import { categoryLabels, slides } from '../data/features'
 
 export function Walkthrough() {
@@ -35,13 +36,13 @@ export function Walkthrough() {
   return (
     <>
       <section className="page-hero" style={{ marginBottom: '1rem' }}>
-        <div className="eyebrow">Feature walkthrough</div>
+        <div className="eyebrow">{bank.name} · Feature walkthrough</div>
         <h1 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', maxWidth: 'none' }}>
-          Every capability, slide by slide
+          Banking controls, slide by slide
         </h1>
         <p className="lede">
-          Use arrow keys or the rail. {slides.length} slides covering WAF, bots,
-          DoS, API security, privacy, and operations.
+          {slides.length} slides — platform capabilities framed as Meridian Digital Bank
+          use cases. Arrow keys or the rail to navigate.
         </p>
       </section>
 
@@ -75,6 +76,10 @@ export function Walkthrough() {
                 <li key={b}>{b}</li>
               ))}
             </ul>
+
+            {slide.bankingCase ? (
+              <p className="banking-case">{slide.bankingCase}</p>
+            ) : null}
 
             {(slide.policySnippet || slide.metric) && (
               <div className="slide-grid">

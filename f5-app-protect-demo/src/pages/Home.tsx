@@ -1,101 +1,113 @@
 import { Link } from 'react-router-dom'
 import { TrafficShield } from '../components/TrafficShield'
+import { attacks } from '../data/attacks'
+import { bank, services } from '../data/banking'
 
 const highlights = [
   {
-    tag: 'WAF',
-    title: 'Attack signatures & OWASP',
-    body: '7,800+ signatures, threat campaigns, evasion checks, and response inspection.',
+    tag: 'ATO & fraud',
+    title: 'Credential stuffing → APP fraud',
+    body: 'Bot defence and brute-force on login/SCA break authorised-push-payment chains before the wire.',
   },
   {
-    tag: 'Bots & DoS',
-    title: 'Automation & L7 stress',
-    body: 'Classify bots and mitigate Layer 7 DoS with behavioral analytics.',
+    tag: 'Open Banking',
+    title: 'FAPI / OBIE contract security',
+    body: 'OpenAPI positive security, JWT shape checks, and BOLA-oriented URL rules on AIS/PIS.',
   },
   {
-    tag: 'API',
-    title: 'OpenAPI, GraphQL, gRPC, JWT',
-    body: 'Contract-first positive security plus protobuf- and token-aware checks.',
+    tag: 'PCI',
+    title: 'Data Guard on receipts',
+    body: 'Mask PANs and national IDs when upstream APIs accidentally echo cardholder or KYC data.',
   },
   {
-    tag: 'Privacy',
-    title: 'Data Guard',
-    body: 'Mask credit cards, SSNs, and custom patterns before responses leave.',
+    tag: 'Corporate',
+    title: 'SEPA XXE & sanctions geo',
+    body: 'XML profiles for pain.001 plus geolocation / IP intelligence on high-value wires.',
   },
   {
-    tag: 'Access',
-    title: 'Geo, IP intel, brute force',
-    body: 'Reputation, country rules, cookie integrity, and login abuse controls.',
+    tag: 'Wealth',
+    title: 'GraphQL enumeration defence',
+    body: 'No introspection, capped depth/batch — stop HNW balance harvesting.',
   },
   {
-    tag: 'Ops',
-    title: 'Security as code',
-    body: 'Declarative JSON policies for GitOps on VM, Docker, or Kubernetes.',
+    tag: 'Mobile',
+    title: 'gRPC protobuf awareness',
+    body: 'IDL-backed parsing rejects malformed mobile Banking RPCs at the BFF edge.',
   },
 ]
 
 export function Home() {
+  const critical = attacks.filter((a) => a.severity === 'critical').length
+
   return (
     <>
-      <section className="page-hero">
-        <div className="eyebrow">F5 WAF for NGINX</div>
-        <h1>App Protect Platform Demo</h1>
+      <section className="page-hero bank-hero">
+        <div className="eyebrow">{bank.name}</div>
+        <h1>App Protect for banking web services</h1>
         <p className="lede">
-          An interactive walkthrough of every major capability — signatures, bots,
-          DoS, API schemas, Data Guard, geo/IP intel — plus a simulated attack lab
-          and declarative policy explorer.
+          A sophisticated F5 WAF for NGINX demo modelled on a regulated digital bank —
+          retail portal, Open Banking APIs, card acquiring, mobile BFF, corporate SEPA,
+          and wealth GraphQL — with {attacks.length} complex attack and allow scenarios.
         </p>
         <div className="cta-row">
           <Link className="btn btn-primary" to="/walkthrough">
-            Start feature walkthrough
+            Feature walkthrough
           </Link>
           <Link className="btn btn-secondary" to="/lab">
-            Open attack lab
+            Open banking attack lab
           </Link>
         </div>
       </section>
 
       <div className="metric-strip">
         <div className="metric">
-          <strong>22</strong>
-          <span>Walkthrough slides</span>
+          <strong>{services.length}</strong>
+          <span>Banking services</span>
         </div>
         <div className="metric">
-          <strong>13</strong>
-          <span>Attack scenarios</span>
+          <strong>{attacks.length}</strong>
+          <span>Lab scenarios</span>
         </div>
         <div className="metric">
-          <strong>4</strong>
-          <span>Sample policies</span>
+          <strong>{critical}</strong>
+          <span>Critical severity</span>
         </div>
         <div className="metric">
-          <strong>3</strong>
-          <span>Deploy topologies</span>
+          <strong>PCI+PSD2</strong>
+          <span>Control themes</span>
         </div>
       </div>
 
       <div className="grid-2">
         <TrafficShield />
         <div className="panel" style={{ padding: '1.25rem' }}>
-          <h3>How to use this demo</h3>
-          <ol className="bullets" style={{ marginTop: '1rem' }}>
-            <li>Walk the slides — every platform feature, in order.</li>
-            <li>Fire attack scenarios in the lab and read security events.</li>
-            <li>Inspect declarative policies and an nginx.conf snippet.</li>
-            <li>Review VM, Docker, and Kubernetes deployment shapes.</li>
-          </ol>
+          <h3>Meridian protected estate</h3>
+          <ul className="service-list">
+            {services.map((s) => (
+              <li key={s.id}>
+                <div>
+                  <strong>
+                    <span className="svc-code">{s.short}</span>
+                    {s.name}
+                  </strong>
+                  <span className="mono host">{s.host}</span>
+                </div>
+                <p>{s.description}</p>
+              </li>
+            ))}
+          </ul>
           <div className="cta-row">
-            <Link className="btn btn-ghost" to="/policies">
-              Policy explorer
-            </Link>
             <Link className="btn btn-ghost" to="/architecture">
-              Architecture
+              Reference architecture
+            </Link>
+            <Link className="btn btn-ghost" to="/policies">
+              Service policies
             </Link>
           </div>
         </div>
       </div>
 
-      <h2 style={{ margin: '2.25rem 0 1rem' }}>Capability map</h2>
+      <h2 style={{ margin: '2.25rem 0 1rem' }}>Complex cases this demo covers</h2>
       <div className="grid-3">
         {highlights.map((item) => (
           <article key={item.title} className="feature-card">
@@ -107,8 +119,8 @@ export function Home() {
       </div>
 
       <p className="footer-note">
-        Educational simulation of F5 WAF for NGINX (formerly NGINX App Protect WAF).
-        Not affiliated with F5, Inc. Feature names map to public product documentation.
+        Educational simulation for {bank.legal}. Not affiliated with F5, Inc. Feature
+        names map to public F5 WAF for NGINX documentation. No real customer data.
       </p>
     </>
   )
