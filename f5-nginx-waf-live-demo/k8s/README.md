@@ -13,10 +13,17 @@ alternative also ships: point the ingress backend at `service: node-waf` /
 external-backend Service (`node-waf-backend.yaml`).
 
 ```
-Internet ─▶ payments.fictionally.org ─▶ Traefik ─▶ Service/waf (in-cluster pod) ─▶ Service/origin
-                                          (default)   reachable ONLY via the WAF
+AFTER (protected):
+  Internet ─▶ payments.fictionally.org        ─▶ Traefik ─▶ Service/waf ─▶ Service/origin
+                                                              (in-cluster)  reachable ONLY via the WAF
+BEFORE (unprotected, gated):
+  Internet ─▶ direct.payments.fictionally.org ─▶ Traefik ─▶ [basic-auth] ─▶ Service/origin-direct
+                                                              same app, NO WAF — attacks succeed
 
-  alt: Traefik ─▶ node WAF (192.168.1.140:9080) ─▶ node origin   (Docker container on debian001)
+  alt AFTER backend: Traefik ─▶ node WAF (192.168.1.140:9080)   (Docker container on debian001)
+
+Observability:
+  waf pod ──(audit JSON → shared file)──▶ promtail sidecar ──▶ Loki ──▶ Grafana dashboard
 ```
 
 ## Deploy
@@ -41,6 +48,60 @@ k8s/test-ingress.sh
 
 Expected: the four attacks return **403** (blocked by the WAF) and legitimate
 requests return **200**.
+
+## Before / after on the public hostname
+
+The demo publishes two hostnames so you can see the *same app* with and without
+the WAF:
+
+| Host | Path | Behaviour |
+|------|------|-----------|
+| `payments.fictionally.org` | Traefik → **WAF** → origin | attacks **blocked (403)**, legit **200** |
+| `direct.payments.fictionally.org` | Traefik → **origin-direct** (no WAF) | attacks **succeed (200)** — behind basic-auth |
+
+`direct.payments.fictionally.org` is a **second** origin instance, so the
+protected origin keeps its strict "reachable only via the WAF" containment. It is
+deliberately vulnerable, so it is **gated behind HTTP basic-auth** (Traefik
+`before-basic-auth` Middleware) and runs with `SAFE_MODE=1`. Change the credential
+in the `before-basic-auth` Secret (`htpasswd -nbB <user> <pass>`).
+
+```bash
+# Before public DNS for the direct host, target a node + Host header:
+U=demo; P=<password from the Secret>
+# attack SUCCEEDS on the unprotected origin (needs creds):
+curl -u "$U:$P" -H 'Host: direct.payments.fictionally.org' \
+  "http://192.168.1.104/search?q=1'%20OR%20'1'='1"        # 200, injected result
+# same attack BLOCKED by the WAF:
+curl -H 'Host: payments.fictionally.org' \
+  "http://192.168.1.104/search?q=1'%20OR%20'1'='1"        # 403
+```
+
+Add a Cloudflare record `direct.payments.fictionally.org CNAME pop0.wslproxy.com`
+(DNS-only) to reach the "before" host publicly.
+
+## WAF console — see logs & violations (Grafana)
+
+There is no vendor UI with the license-free CRS engine, so the demo ships one.
+The WAF writes its ModSecurity **audit log** (one JSON object per violation:
+matched rule, data, anomaly score, client, URI) to a shared file; a **promtail**
+sidecar tails it into **Loki**; **Grafana** renders a pre-provisioned dashboard
+*F5 NGINX WAF — Live Violations* (total violations, over-time, top rules, top
+attacking IPs, live violation log).
+
+```bash
+kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000
+# http://localhost:3300   (admin / admin-password from the grafana-admin Secret)
+```
+
+CLI equivalents if you'd rather not open a browser:
+
+```bash
+# tail the raw audit JSON the dashboard is built from:
+kubectl -n f5-waf-demo exec deploy/waf -c waf -- tail -f /var/log/modsec/audit.log
+# query Loki directly:
+kubectl -n f5-waf-demo exec deploy/loki -- \
+  wget -qO- 'http://localhost:3100/loki/api/v1/query?query=sum(count_over_time({job="modsec-audit"}[1h]))'
+```
 
 ## Two real-world details this demo surfaces
 
@@ -99,4 +160,6 @@ tests) changes.
 | `waf-deployment.yaml` | the WAF (OWASP CRS / ModSecurity-NGINX) |
 | `ingress.yaml` | `payments.fictionally.org` → WAF (Traefik) |
 | `networkpolicy.yaml` | origin containment |
+| `before-after.yaml` | `origin-direct` (unprotected app) + basic-auth Middleware + `direct.payments.fictionally.org` ingress |
+| `observability.yaml` | Loki + Grafana + promtail config + the WAF dashboard |
 | `test-ingress.sh` | attack/allow test through the ingress |

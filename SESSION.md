@@ -12,6 +12,11 @@ ModSecurity-NGINX) in front, in three deployment shapes (local Docker, single
 node, k3s). A comprehensive capability matrix proves each attack is exploitable
 unprotected and blocked (403) by the WAF, while legit traffic passes (200).
 
+The k3s deployment also publishes a **public before/after** — `payments…` (WAF,
+blocks) vs `direct.payments…` (same app, no WAF, exploitable, basic-auth gated) —
+and a **WAF console**: Loki + Grafana fed by a promtail sidecar on the WAF pod,
+with a live-violations dashboard.
+
 Capabilities demonstrated: SQLi, reflected XSS, command injection (RCE), PHP code
 injection, path traversal (LFI), remote file inclusion, Log4Shell (JNDI), SSRF
 (cloud metadata), bot/scanner signatures (sqlmap/nikto UA), HTTP method
@@ -24,16 +29,20 @@ enforcement (PUT/DELETE).
 | **Local Docker** | `origin :8081`, `waf :8082` — running from this repo. `./run-demo.sh` → 17/17. |
 | **Node (debian001, 192.168.1.140)** | `~/f5-waf-demo/` Docker compose; **WAF published on `:9080`**, origin internal, `SAFE_MODE=1`. `deploy/test-node.sh` → 16/16. |
 | **k3s cluster `k3s1`** | Namespace `f5-waf-demo`: hardened origin + WAF pods, NetworkPolicy containment. Applied with `kubectl apply -k k8s/`. |
-| **Ingress `payments.fictionally.org`** | Traefik → **in-cluster WAF pod** (`service waf:8080`) → in-cluster origin pod. Fully in-cluster, no node hop. Verified via WAF-pod logs. 16/16. |
+| **Ingress `payments.fictionally.org`** (AFTER) | Traefik → **in-cluster WAF pod** (`service waf:8080`) → in-cluster origin pod. Fully in-cluster, no node hop. Verified via WAF-pod logs. 16/16. |
+| **Ingress `direct.payments.fictionally.org`** (BEFORE) | Traefik → **`origin-direct`** (2nd origin, **no WAF**), gated by Traefik basic-auth (`before-basic-auth`). Same app → attacks succeed (200). Creds: `demo` / see `before-basic-auth` Secret. DNS record not yet added. |
 | **Public URL** | `https://payments.fictionally.org/` **live** via Cloudflare CNAME → `pop0.wslproxy.com` → wslproxy tunnel → Traefik. HTTPS attacks blocked 403, landing 200. Tunnel serves a **self-signed cert** (browser warning) — real cert not yet provisioned. |
+| **WAF console (Grafana)** | `f5-waf-demo` ns: **Loki + Grafana + promtail sidecar** on the WAF pod. Audit JSON → file → promtail → Loki → dashboard *F5 NGINX WAF — Live Violations*. Access: `kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000` → http://localhost:3300 (admin / `grafana-admin` Secret). |
 | **kubeconfig** | `~/.kube/k3s1.yaml` (server `https://192.168.1.104:6443`). |
 | **Git** | Branch `f5-nginx-waf-live-demo` merged to `main`; pushed to `origin/main`. |
 
 ### How to reach the demos
 - Local: `http://localhost:8081` (raw) vs `http://localhost:8082` (WAF)
 - Node WAF: `http://192.168.1.140:9080/`
-- Ingress (public): `https://payments.fictionally.org/` (self-signed cert — use `curl -k`)
-- Ingress (internal): `curl -H 'Host: payments.fictionally.org' http://192.168.1.104/`
+- Ingress AFTER (public): `https://payments.fictionally.org/` (self-signed cert — use `curl -k`)
+- Ingress BEFORE (internal): `curl -u demo:<pw> -H 'Host: direct.payments.fictionally.org' http://192.168.1.104/...`
+- Ingress AFTER (internal): `curl -H 'Host: payments.fictionally.org' http://192.168.1.104/`
+- WAF console: `kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000` → http://localhost:3300
 
 ## Key findings / decisions
 
@@ -65,6 +74,8 @@ enforcement (PUT/DELETE).
       done; `https://payments.fictionally.org/` is live and WAF-protected.
 - [x] Repoint ingress from node WAF to the in-cluster WAF pod — done (`waf:8080`).
 - [x] `git push` `main` to origin — done; in sync at latest commit.
+- [ ] Add Cloudflare record `direct.payments.fictionally.org CNAME pop0.wslproxy.com`
+      (DNS-only) to reach the gated "before WAF" host publicly.
 - [ ] Provision a real TLS cert for `payments.fictionally.org` (tunnel currently
       serves a self-signed cert, so browsers warn).
 - [ ] (Security) The `origin` remote URL embeds a GitHub PAT — rewrite to a

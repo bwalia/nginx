@@ -13,3 +13,5 @@ resources:
   - node-waf-backend.yaml
   - ingress.yaml
   - networkpolicy.yaml
+  - before-after.yaml
+  - observability.yaml

@@ -19,6 +19,20 @@ spec:
       # for F5 NGINX App Protect WAF. Swap this image + config for the real F5
       # engine (see ../f5-app-protect/) without touching anything else.
       automountServiceAccountToken: false
+      initContainers:
+        # Make the shared audit-log dir writable by the nginx worker (uid 101)
+        # and readable by the promtail sidecar.
+        - name: init-logdir
+          image: busybox:1.36
+          command: ["sh", "-c", "mkdir -p /var/log/modsec && chmod 0777 /var/log/modsec"]
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: modsec-logs
+              mountPath: /var/log/modsec
       containers:
         - name: waf
           image: owasp/modsecurity-crs:nginx
@@ -42,7 +56,9 @@ spec:
             - name: MODSEC_AUDIT_ENGINE
               value: "RelevantOnly"
             - name: MODSEC_AUDIT_LOG
-              value: "/dev/stdout"
+              value: "/var/log/modsec/audit.log"   # tailed by the promtail sidecar
+            - name: MODSEC_AUDIT_LOG_FORMAT
+              value: "JSON"
             - name: SERVERTOKENS
               value: "off"
           ports:
@@ -69,3 +85,37 @@ spec:
             limits:
               cpu: 500m
               memory: 256Mi
+          volumeMounts:
+            - name: modsec-logs
+              mountPath: /var/log/modsec
+        # Ships the WAF's ModSecurity audit log (JSON per violation) to Loki.
+        - name: promtail
+          image: grafana/promtail:2.9.8
+          args: ["-config.file=/etc/promtail/promtail.yaml"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 25m
+              memory: 48Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: modsec-logs
+              mountPath: /var/log/modsec
+              readOnly: true
+            - name: promtail-config
+              mountPath: /etc/promtail
+            - name: promtail-run
+              mountPath: /run/promtail
+      volumes:
+        - name: modsec-logs
+          emptyDir: {}
+        - name: promtail-config
+          configMap:
+            name: promtail-config
+        - name: promtail-run
+          emptyDir: {}

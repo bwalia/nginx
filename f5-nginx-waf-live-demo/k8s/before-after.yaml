@@ -1,0 +1,177 @@
+# ---------------------------------------------------------------------------
+# "Before WAF" side of the demo: the SAME vulnerable app, exposed directly with
+# NO WAF in front, so attacks succeed. This is a SECOND origin instance
+# (origin-direct) rather than the WAF-protected `origin`, so the protected
+# origin keeps its strict "reachable only via the WAF" containment intact.
+#
+#   direct.payments.fictionally.org  --> Traefik --> origin-direct   (NO WAF, gated)
+#   payments.fictionally.org         --> Traefik --> waf --> origin  (WAF, public)
+#
+# Because a deliberately-vulnerable app must never sit wide-open on the public
+# internet, the "before" host is gated behind HTTP basic-auth (Traefik
+# middleware) and the app runs with SAFE_MODE=1 (file-read / command-injection
+# are simulated, never really executed). Change the credential in the Secret.
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: origin-direct
+  labels:
+    app: origin-direct
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: origin-direct
+  template:
+    metadata:
+      labels:
+        app: origin-direct
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: origin
+          image: python:3.12-slim
+          command: ["python", "/app/app.py"]
+          env:
+            - name: PORT
+              value: "8080"
+            - name: SAFE_MODE          # simulate exploits, never really run them
+              value: "1"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          volumeMounts:
+            - name: app
+              mountPath: /app
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: app
+          configMap:
+            name: origin-app     # same app as the protected origin
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: origin-direct
+  labels:
+    app: origin-direct
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+spec:
+  selector:
+    app: origin-direct
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# Even the unprotected origin gets egress containment: it can only do DNS, so a
+# successful exploit can't turn it into an exfil / lateral-movement pivot.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: origin-direct-egress-dns-only
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+spec:
+  podSelector:
+    matchLabels:
+      app: origin-direct
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Basic-auth gate for the "before" host. Replace the htpasswd line to change the
+# credential:  htpasswd -nbB <user> <pass>
+apiVersion: v1
+kind: Secret
+metadata:
+  name: before-basic-auth
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+type: Opaque
+stringData:
+  users: |
+    demo:$2y$05$qG3iKSrkwesTbDnBFnXyu.rrnGIyDLhT4ybmOHN1KCM.sHNlB.vVy
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: before-basic-auth
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+spec:
+  basicAuth:
+    secret: before-basic-auth
+    realm: "F5 WAF demo -- UNPROTECTED origin (before WAF)"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: payments-direct
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: direct.payments.fictionally.org
+    external-dns.alpha.kubernetes.io/target: pop0.wslproxy.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    # Attach the basic-auth gate. Ref format is <namespace>-<middleware>@kubernetescrd.
+    traefik.ingress.kubernetes.io/router.middlewares: f5-waf-demo-before-basic-auth@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: direct.payments.fictionally.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: origin-direct
+                port:
+                  number: 8080

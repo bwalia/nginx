@@ -74,6 +74,16 @@ The ingress `payments.fictionally.org` routes to the **in-cluster** WAF pod
 one is provisioned.) To route to the off-cluster node WAF from demo 2 instead,
 set the ingress backend to `service: node-waf` / `port: 9080`.
 
+The k3s deployment also publishes a **public before/after** and a **WAF console**:
+
+- `direct.payments.fictionally.org` — the *same* app with **no WAF** in front
+  (attacks succeed), gated behind HTTP basic-auth (`before-basic-auth` Secret;
+  user `demo`). Contrast with `payments.fictionally.org`, which blocks them.
+- **Grafana WAF console** — a promtail sidecar ships the WAF's ModSecurity audit
+  log into Loki; Grafana serves a live *F5 NGINX WAF — Live Violations* dashboard.
+  `kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000` → http://localhost:3300
+  (admin / `grafana-admin` Secret). See [`k8s/README.md`](./f5-nginx-waf-live-demo/k8s/README.md).
+
 Tear down: `kubectl delete -k f5-nginx-waf-live-demo/k8s/`
 
 ---
