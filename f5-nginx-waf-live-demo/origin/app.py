@@ -56,6 +56,9 @@ code{{background:#f4f4f4;padding:2px 5px;border-radius:4px}}
 <li>Product lookup (SQLi): <code>/products?cat=deposit</code></li>
 <li>Statement download (path traversal): <code>/download?file=welcome.txt</code></li>
 <li>Branch health check (command injection): <code>/ping?host=127.0.0.1</code></li>
+<li>Directory lookup (Log4Shell/JNDI): <code>/lookup?user=guest</code></li>
+<li>Link preview (SSRF / RFI): <code>/fetch?url=https://acme.example/logo.png</code></li>
+<li>Receipt template (code injection): <code>/render?tpl=Hello</code></li>
 </ul>
 {body}
 </body></html>"""
@@ -160,6 +163,46 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 combined = f"error: {e}"
             body = f"<h2>Branch health check</h2><p>Ran:</p><code>{html.escape(cmd)}</code><pre>{html.escape(combined)}</pre>"
+            return self._send(200, PAGE.format(body=body))
+
+        # ---- Log4Shell / JNDI: value flows into a logging / lookup layer ----
+        # Always simulated (we only reflect it). A vulnerable Log4j-style stack
+        # would resolve ${jndi:ldap://...} and execute attacker-controlled code.
+        if path == "/lookup":
+            user = q.get("user", ["guest"])[0]
+            note = ""
+            if "${" in user or "jndi" in user.lower():
+                note = ("<h3 class='v'>&#9888;&#65039; Log4Shell: a vulnerable logging stack would "
+                        "resolve this JNDI lookup and fetch + run attacker code.</h3>")
+            body = f"<h2>Directory lookup</h2><p>Looking up user: <code>{html.escape(user)}</code></p>{note}"
+            return self._send(200, PAGE.format(body=body))
+
+        # ---- SSRF / RFI: server-side "fetch" of an attacker-supplied URL ----
+        # We NEVER actually make the request (that would be real SSRF); the
+        # outcome is simulated so the endpoint is safe to expose.
+        if path == "/fetch":
+            url = q.get("url", ["https://acme.example/logo.png"])[0]
+            low = url.lower()
+            internal = any(s in low for s in ("169.254.169.254", "localhost", "127.0.0.1",
+                                              "metadata", "file:", "internal", "10.", "192.168."))
+            if internal:
+                body = ("<h2>Link preview</h2><p>Fetching: <code>%s</code></p>"
+                        "<h3 class='v'>&#9888;&#65039; SSRF: an unprotected fetcher would return "
+                        "internal / cloud-metadata content (e.g. IAM credentials).</h3>"
+                        % html.escape(url))
+            elif low.startswith("http://") or low.startswith("https://"):
+                body = ("<h2>Link preview</h2><p>Fetching: <code>%s</code></p>"
+                        "<p>(simulated preview of the remote resource)</p>" % html.escape(url))
+            else:
+                body = "<h2>Link preview</h2><p>Invalid URL.</p>"
+            return self._send(200, PAGE.format(body=body))
+
+        # ---- Code / template injection: input rendered by a template engine ----
+        # Reflected only; a real eval/template engine would execute it.
+        if path == "/render":
+            tpl = q.get("tpl", ["Hello {name}"])[0]
+            body = (f"<h2>Receipt template preview</h2><p>Rendering template:</p>"
+                    f"<pre>{html.escape(tpl)}</pre>")
             return self._send(200, PAGE.format(body=body))
 
         return self._send(404, PAGE.format(body="<p>Not found.</p>"))

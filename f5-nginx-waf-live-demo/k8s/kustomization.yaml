@@ -10,5 +10,6 @@ resources:
   - origin-service.yaml
   - waf-deployment.yaml
   - waf-service.yaml
+  - node-waf-backend.yaml
   - ingress.yaml
   - networkpolicy.yaml

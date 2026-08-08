@@ -4,11 +4,17 @@ Deploys the demo into a k3s cluster: the deliberately-vulnerable origin runs
 locked-down and **unexposed**, the WAF sits in front, and a Traefik ingress
 publishes `payments.fictionally.org` → WAF → origin.
 
+By default the ingress routes to the WAF running **on a node** as a Docker
+container (`deploy/node-demo.compose.yml` at `192.168.1.140:9080`), reached via
+the `node-waf` external-backend Service (`node-waf-backend.yaml`). The in-cluster
+origin + WAF pods are also deployed; to route the ingress to the **in-cluster**
+WAF pod instead, set the ingress backend to `service: waf` / `port: 8080`.
+
 ```
-Internet ──▶ payments.fictionally.org ──▶ Traefik ──▶ Service/waf ──▶ Service/origin
-                                                       (CRS/ModSec)     (vulnerable,
-                                                                         reachable ONLY
-                                                                         via the WAF)
+Internet ─▶ payments.fictionally.org ─▶ Traefik ─▶ node WAF (192.168.1.140:9080) ─▶ node origin
+                                          (default)   Docker container on debian001
+
+  alt: Traefik ─▶ Service/waf (in-cluster pod) ─▶ Service/origin  (reachable ONLY via the WAF)
 ```
 
 ## Deploy
