@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""
+Acme Bank customer portal -- DELIBERATELY VULNERABLE demo origin.
+
+This app is intentionally insecure. It exists to show what an unprotected
+origin does when hit with common web attacks, and to prove that F5 NGINX WAF
+stops those same attacks before they ever reach this code.
+
+DO NOT deploy this anywhere real. It runs inside an isolated container.
+
+Vulnerabilities on purpose:
+  /search?q=       Reflected XSS   -- reflects input into HTML unescaped
+  /products?cat=   SQL injection   -- naive string-built query against a fake DB
+  /download?file=  Path traversal  -- reads any file the process can see
+  /ping?host=      Command injection -- passes input to a shell
+"""
+import os
+import html
+import subprocess
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs
+
+PORT = int(os.environ.get("PORT", "8080"))
+
+# A pretend customer database. The "secret" row is what an attacker is after.
+FAKE_DB = [
+    {"id": 1, "name": "Checking Account", "category": "deposit", "balance": "$4,210.55"},
+    {"id": 2, "name": "Savings Account", "category": "deposit", "balance": "$18,900.00"},
+    {"id": 3, "name": "Platinum Credit Card", "category": "credit", "balance": "-$1,204.13"},
+]
+SECRET_ROWS = [
+    {"user": "admin", "password_hash": "$2b$12$Q9s.KXo3...LEAKED...", "ssn": "412-90-1174"},
+    {"user": "jsmith", "password_hash": "$2b$12$aB7.PmZ1...LEAKED...", "ssn": "631-22-9087"},
+]
+
+PAGE = """<!doctype html>
+<html><head><title>Acme Bank Portal</title>
+<style>body{{font-family:system-ui;margin:40px;max-width:720px}}
+code{{background:#f4f4f4;padding:2px 5px;border-radius:4px}}
+.v{{color:#b00}}</style></head>
+<body>
+<h1>&#127974; Acme Bank &mdash; Customer Portal</h1>
+<p><b class="v">Origin app with NO WAF in front.</b> Intentionally vulnerable.</p>
+<ul>
+<li>Product search (XSS): <code>/search?q=laptop</code></li>
+<li>Product lookup (SQLi): <code>/products?cat=deposit</code></li>
+<li>Statement download (path traversal): <code>/download?file=welcome.txt</code></li>
+<li>Branch health check (command injection): <code>/ping?host=127.0.0.1</code></li>
+</ul>
+{body}
+</body></html>"""
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "AcmeBank/1.0"
+
+    def _send(self, code, body, ctype="text/html; charset=utf-8"):
+        data = body.encode() if isinstance(body, str) else body
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, fmt, *args):
+        pass  # keep the demo output clean
+
+    def do_GET(self):
+        u = urlparse(self.path)
+        q = parse_qs(u.query)
+        path = u.path.rstrip("/") or "/"
+
+        if path == "/" or path == "":
+            return self._send(200, PAGE.format(body=""))
+
+        if path == "/healthz":
+            return self._send(200, "ok", "text/plain")
+
+        # ---- Reflected XSS: input echoed straight into the page ----
+        if path == "/search":
+            term = q.get("q", [""])[0]
+            body = f"<h2>Search results</h2><p>You searched for: {term}</p>"  # UNESCAPED
+            return self._send(200, PAGE.format(body=body))
+
+        # ---- SQL injection: query built by string concatenation ----
+        if path == "/products":
+            cat = q.get("cat", [""])[0]
+            sql = "SELECT id,name,balance FROM products WHERE category = '" + cat + "'"
+            # Simulate a naive DB: a tautology or UNION leaks everything.
+            lowered = cat.lower()
+            rows = [r for r in FAKE_DB if r["category"] == cat]
+            leaked = ("'" in cat) or (" or " in lowered) or ("union" in lowered) or ("--" in cat)
+            body = f"<h2>Products</h2><p>Executed query:</p><code>{html.escape(sql)}</code><ul>"
+            if leaked:
+                for r in FAKE_DB:
+                    body += f"<li>{r['name']} &mdash; {r['balance']}</li>"
+                body += "</ul><h3 class='v'>&#9888;&#65039; injection dumped secret table:</h3><ul>"
+                for s in SECRET_ROWS:
+                    body += f"<li class='v'>{s['user']} / {s['password_hash']} / SSN {s['ssn']}</li>"
+                body += "</ul>"
+            else:
+                for r in rows:
+                    body += f"<li>{r['name']} &mdash; {r['balance']}</li>"
+                body += "</ul>"
+            return self._send(200, PAGE.format(body=body))
+
+        # ---- Path traversal: reads whatever path is given ----
+        if path == "/download":
+            fname = q.get("file", ["welcome.txt"])[0]
+            base = "/srv/statements"
+            target = os.path.join(base, fname)  # no normalization/containment check
+            try:
+                with open(target, "rb") as fh:
+                    content = fh.read()
+                return self._send(200, content, "text/plain; charset=utf-8")
+            except Exception as e:
+                return self._send(404, f"could not read {html.escape(fname)}: {e}", "text/plain")
+
+        # ---- Command injection: input handed to a shell ----
+        if path == "/ping":
+            host = q.get("host", ["127.0.0.1"])[0]
+            cmd = "ping -c 1 -W 1 " + host  # attacker controls the string
+            try:
+                out = subprocess.run(cmd, shell=True, capture_output=True,
+                                     text=True, timeout=5)
+                combined = (out.stdout or "") + (out.stderr or "")
+            except Exception as e:
+                combined = f"error: {e}"
+            body = f"<h2>Branch health check</h2><p>Ran:</p><code>{html.escape(cmd)}</code><pre>{html.escape(combined)}</pre>"
+            return self._send(200, PAGE.format(body=body))
+
+        return self._send(404, PAGE.format(body="<p>Not found.</p>"))
+
+
+if __name__ == "__main__":
+    print(f"Vulnerable Acme Bank origin listening on :{PORT}", flush=True)
+    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

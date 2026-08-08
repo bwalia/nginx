@@ -1,0 +1,53 @@
+name: f5-nginx-waf-demo
+
+services:
+  # ---------------------------------------------------------------------------
+  # The origin app, exposed DIRECTLY on :8081 with nothing in front of it.
+  # This is the "before" -- attacks land straight on vulnerable code.
+  # ---------------------------------------------------------------------------
+  origin:
+    build: ./origin
+    container_name: waf-demo-origin
+    ports:
+      - "8081:8080"     # http://localhost:8081  -> raw, unprotected origin
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8080/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # The SAME origin, but reached only through the WAF on :8082.
+  # This is the "after" -- F5 NGINX WAF inspects every request first.
+  #
+  # Out of the box this runs OWASP Core Rule Set on ModSecurity-NGINX, a
+  # license-free enforcement engine, so the before/after is reproducible on any
+  # machine. To run the real F5 NGINX App Protect WAF v5 engine instead (needs
+  # an F5 subscription/trial), see ./f5-app-protect/ -- same topology, same
+  # attacks, drop-in swap.
+  # ---------------------------------------------------------------------------
+  waf:
+    image: owasp/modsecurity-crs:nginx
+    container_name: waf-demo-waf
+    depends_on:
+      origin:
+        condition: service_healthy
+    ports:
+      - "8082:8080"     # http://localhost:8082  -> origin, behind the WAF
+    environment:
+      BACKEND: "http://origin:8080"
+      PORT: "8080"
+      # Blocking mode, anomaly scoring. Flip MODSEC_RULE_ENGINE to DetectionOnly
+      # to watch attacks get logged but passed through (useful for tuning).
+      MODSEC_RULE_ENGINE: "On"
+      PARANOIA: "1"
+      ANOMALY_INBOUND: "5"
+      ANOMALY_OUTBOUND: "4"
+      BLOCKING_PARANOIA: "1"
+      MODSEC_RESP_BODY_ACCESS: "On"
+      MODSEC_AUDIT_ENGINE: "RelevantOnly"
+      MODSEC_AUDIT_LOG: "/dev/stdout"
+      # Cosmetic: label blocked responses so the demo output is unmistakable.
+      SERVERTOKENS: "off"

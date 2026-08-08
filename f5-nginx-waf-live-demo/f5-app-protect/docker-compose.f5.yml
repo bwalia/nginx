@@ -1,0 +1,70 @@
+name: f5-nginx-waf-demo-nap
+
+# =============================================================================
+# REAL F5 NGINX App Protect WAF v5 topology.
+#
+# This is the licensed F5 engine, not the OSS stand-in used by the top-level
+# docker-compose.yml. It needs:
+#   1. An NGINX Plus / App Protect subscription or 30-day trial from F5.
+#   2. `docker login private-registry.nginx.com` using your JWT license as the
+#      username and "none" as the password.
+#   3. Your nginx-repo.crt / nginx-repo.key placed next to the Dockerfile so it
+#      can build the App Protect NGINX image.
+#
+# See ./README.md for the full walkthrough. Run with:
+#   docker compose -f docker-compose.f5.yml up --build
+# then point the demo at it:
+#   WAF=http://localhost:8082 ../run-demo.sh
+#
+# App Protect WAF v5 is three cooperating containers: the NGINX data plane, the
+# enforcer (inspection engine), and the config manager (compiles policies).
+# =============================================================================
+
+services:
+  origin:
+    build: ../origin
+    container_name: nap-demo-origin
+    expose:
+      - "8080"
+
+  # NGINX data plane with the App Protect module loaded (built from F5 registry).
+  nginx-app-protect:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nap-demo-nginx
+    depends_on:
+      - origin
+      - waf-enforcer
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./policies:/etc/app_protect/policies:ro
+      - app_protect_bd_config:/opt/app_protect/bd_config
+      - app_protect_config:/opt/app_protect/config
+
+  # The App Protect enforcement engine (does the actual inspection).
+  waf-enforcer:
+    image: private-registry.nginx.com/nap/waf-enforcer:5.6.0
+    container_name: nap-demo-enforcer
+    environment:
+      ENFORCER_PORT: "50000"
+    volumes:
+      - app_protect_bd_config:/opt/app_protect/bd_config
+    restart: always
+
+  # Compiles the declarative JSON policy into the enforcer's binary config.
+  waf-config-mgr:
+    image: private-registry.nginx.com/nap/waf-config-mgr:5.6.0
+    container_name: nap-demo-config-mgr
+    depends_on:
+      - waf-enforcer
+    volumes:
+      - app_protect_bd_config:/opt/app_protect/bd_config
+      - app_protect_config:/opt/app_protect/config
+    restart: always
+
+volumes:
+  app_protect_bd_config:
+  app_protect_config:
