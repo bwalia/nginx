@@ -66,9 +66,13 @@ BASE=http://192.168.1.104 HOSTHDR=payments.fictionally.org \
   f5-nginx-waf-live-demo/k8s/test-ingress.sh
 ```
 
-The ingress `payments.fictionally.org` routes to the **node** WAF from demo 2
-(via an external-backend Service). To make it resolve publicly, add one
-Cloudflare record: `payments.fictionally.org  CNAME  pop0.wslproxy.com` (DNS-only).
+The ingress `payments.fictionally.org` routes to the **in-cluster** WAF pod
+(`service: waf` / `port: 8080`) → in-cluster origin pod. It is live publicly at
+`https://payments.fictionally.org/` via the Cloudflare record
+`payments.fictionally.org  CNAME  pop0.wslproxy.com` (DNS-only) → wslproxy tunnel
+→ Traefik. (The tunnel serves a self-signed cert, so browsers warn until a real
+one is provisioned.) To route to the off-cluster node WAF from demo 2 instead,
+set the ingress backend to `service: node-waf` / `port: 9080`.
 
 Tear down: `kubectl delete -k f5-nginx-waf-live-demo/k8s/`
 

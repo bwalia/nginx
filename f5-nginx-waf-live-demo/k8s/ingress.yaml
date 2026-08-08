@@ -13,9 +13,10 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    # Routed to the WAF running on the k3s node (deploy/node-demo.compose.yml),
-    # via the node-waf external-backend Service (see node-waf-backend.yaml).
-    # To route to the in-cluster WAF pod instead, set service name=waf port=8080.
+    # Routed to the in-cluster WAF pod (waf Deployment/Service), which proxies to
+    # the in-cluster origin pod. Fully self-contained in the cluster — no hop out
+    # to the plain VM. To route to the node WAF instead, set name=node-waf port=9080
+    # (see node-waf-backend.yaml).
     - host: payments.fictionally.org
       http:
         paths:
@@ -23,6 +24,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: node-waf
+                name: waf
                 port:
-                  number: 9080
+                  number: 8080

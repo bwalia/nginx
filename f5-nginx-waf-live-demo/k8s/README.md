@@ -4,17 +4,19 @@ Deploys the demo into a k3s cluster: the deliberately-vulnerable origin runs
 locked-down and **unexposed**, the WAF sits in front, and a Traefik ingress
 publishes `payments.fictionally.org` → WAF → origin.
 
-By default the ingress routes to the WAF running **on a node** as a Docker
-container (`deploy/node-demo.compose.yml` at `192.168.1.140:9080`), reached via
-the `node-waf` external-backend Service (`node-waf-backend.yaml`). The in-cluster
-origin + WAF pods are also deployed; to route the ingress to the **in-cluster**
-WAF pod instead, set the ingress backend to `service: waf` / `port: 8080`.
+By default the ingress routes to the **in-cluster** WAF pod (`waf` Deployment /
+Service on `:8080`), which proxies to the in-cluster origin pod. The whole path
+is self-contained in the cluster — no hop out to a Docker host. An off-cluster
+alternative also ships: point the ingress backend at `service: node-waf` /
+`port: 9080` to reach the WAF running as a Docker container on a node
+(`deploy/node-demo.compose.yml` at `192.168.1.140:9080`) via the `node-waf`
+external-backend Service (`node-waf-backend.yaml`).
 
 ```
-Internet ─▶ payments.fictionally.org ─▶ Traefik ─▶ node WAF (192.168.1.140:9080) ─▶ node origin
-                                          (default)   Docker container on debian001
+Internet ─▶ payments.fictionally.org ─▶ Traefik ─▶ Service/waf (in-cluster pod) ─▶ Service/origin
+                                          (default)   reachable ONLY via the WAF
 
-  alt: Traefik ─▶ Service/waf (in-cluster pod) ─▶ Service/origin  (reachable ONLY via the WAF)
+  alt: Traefik ─▶ node WAF (192.168.1.140:9080) ─▶ node origin   (Docker container on debian001)
 ```
 
 ## Deploy
@@ -45,16 +47,18 @@ requests return **200**.
 **1. DNS is not automatic here.** The cluster's `external-dns` is filtered to
 `diytaxreturn.co.uk`, so it ignores `*.fictionally.org` ingresses. The existing
 `fictionally.org` names are individual Cloudflare CNAMEs → `pop0.wslproxy.com`
-(there is no wildcard). To make `payments.fictionally.org` resolve, add one
-Cloudflare record:
+(there is no wildcard). The record for this demo has been added manually:
 
 ```
 payments.fictionally.org   CNAME   pop0.wslproxy.com   (DNS-only, not proxied)
 ```
 
-The ingress already carries the `external-dns.alpha.kubernetes.io/*` annotations,
-so if an external-dns instance that manages `fictionally.org` is ever added, it
-will publish this record automatically.
+so `https://payments.fictionally.org/` is live through the wslproxy tunnel →
+Traefik → in-cluster WAF. The ingress also carries the
+`external-dns.alpha.kubernetes.io/*` annotations, so if an external-dns instance
+that manages `fictionally.org` is ever added, it will keep this record in sync.
+(The tunnel currently serves a self-signed TLS cert for the hostname, so browsers
+show a certificate warning until a real cert is provisioned for it.)
 
 **2. Traefik normalizes literal `;`.** Traefik's URL parser drops everything
 after a literal semicolon before the request reaches the WAF, so a

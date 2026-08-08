@@ -127,10 +127,12 @@ subscription or free 30-day trial and ships the real declarative policy,
 | **A single node (SSH + Docker)** | WAF published on one port, origin internal | [`deploy/README.md`](./deploy/README.md) |
 | **Kubernetes (k3s)** | `kubectl apply -k k8s/` — Traefik ingress `payments.fictionally.org` → WAF → origin, hardened pods, NetworkPolicy containment | [`k8s/README.md`](./k8s/README.md) |
 
-The k3s ingress `payments.fictionally.org` is wired to the **node** WAF by
-default (via an external-backend Service → `192.168.1.140:9080`), so the node
-deployment *is* what serves the public hostname. Point it at the in-cluster WAF
-pod instead by setting the ingress backend to `service: waf` / `port: 8080`.
+The k3s ingress `payments.fictionally.org` is wired to the **in-cluster** WAF pod
+by default (`service: waf` / `port: 8080`), which proxies to the in-cluster origin
+pod — the whole path stays inside the cluster. It is live publicly over HTTPS
+through the wslproxy tunnel. To route to the off-cluster node WAF from demo 2
+instead, set the ingress backend to `service: node-waf` / `port: 9080` (an
+external-backend Service → `192.168.1.140:9080`).
 
 > **`SAFE_MODE`** — the origin's file-read and command-injection flaws are
 > *real* by default (local Docker) so the exploit is genuine. On shared infra
