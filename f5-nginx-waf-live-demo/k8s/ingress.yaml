@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: payments
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+  annotations:
+    # Matches the convention the other *.fictionally.org ingresses use so
+    # external-dns publishes the record automatically (CNAME -> the wslproxy pop).
+    external-dns.alpha.kubernetes.io/hostname: payments.fictionally.org
+    external-dns.alpha.kubernetes.io/target: pop0.wslproxy.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+spec:
+  ingressClassName: traefik
+  rules:
+    # Public entry point routes ONLY to the WAF. The vulnerable origin is never
+    # exposed directly -- it is reachable only through the WAF (see NetworkPolicy).
+    - host: payments.fictionally.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: waf
+                port:
+                  number: 8080

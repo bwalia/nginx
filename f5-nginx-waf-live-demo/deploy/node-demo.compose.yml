@@ -1,0 +1,53 @@
+name: f5-waf-node-demo
+
+# WAF-in-front demo for a single Docker host (e.g. a k3s node reached over SSH).
+# Only the WAF port is published; the deliberately-vulnerable origin is internal
+# to the compose network and reachable ONLY through the WAF. The origin runs in
+# SAFE_MODE (simulated exploits, no real shell/file access) because the host is
+# shared infrastructure.
+#
+# Deploy (from this directory, with app.py alongside):
+#   scp app.py node-demo.compose.yml bwalia@<node>:~/f5-waf-demo/
+#   ssh bwalia@<node> 'cd ~/f5-waf-demo && docker compose -f node-demo.compose.yml up -d'
+# Test:  curl http://<node>:9080/            (WAF -> origin)
+#
+# To run the REAL F5 NGINX App Protect WAF v5 engine instead of OWASP CRS, see
+# ../f5-app-protect/ -- swap the `waf` service's image + config, keep everything
+# else. That requires an F5 subscription/trial (private-registry.nginx.com).
+
+services:
+  origin:
+    image: python:3.12-slim
+    container_name: f5-waf-node-origin
+    command: ["python", "/app/app.py"]
+    environment:
+      PORT: "8080"
+      SAFE_MODE: "1"               # simulate exploits; never touch a real shell/fs
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./app.py:/app/app.py:ro
+    expose:
+      - "8080"                     # internal only -- NOT published to the host
+    restart: unless-stopped
+
+  waf:
+    image: owasp/modsecurity-crs:nginx
+    container_name: f5-waf-node-waf
+    depends_on:
+      - origin
+    ports:
+      - "9080:8080"                # the only exposed port; clients hit the WAF here
+    environment:
+      BACKEND: "http://origin:8080"
+      PORT: "8080"
+      MODSEC_RULE_ENGINE: "On"
+      PARANOIA: "1"
+      ANOMALY_INBOUND: "5"
+      ANOMALY_OUTBOUND: "4"
+      BLOCKING_PARANOIA: "1"
+      MODSEC_RESP_BODY_ACCESS: "On"
+      MODSEC_AUDIT_ENGINE: "RelevantOnly"
+      MODSEC_AUDIT_LOG: "/dev/stdout"
+      SERVERTOKENS: "off"
+    restart: unless-stopped

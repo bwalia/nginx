@@ -1,0 +1,45 @@
+# Containment for the deliberately-vulnerable origin. Even if some payload ever
+# slips past the WAF, the origin pod can only be reached by the WAF and can only
+# make DNS queries outbound -- no path to the API server, node metadata, the
+# internet, or other workloads.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: origin-ingress-from-waf-only
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+spec:
+  podSelector:
+    matchLabels:
+      app: origin
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: waf
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: origin-egress-dns-only
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+spec:
+  podSelector:
+    matchLabels:
+      app: origin
+  policyTypes:
+    - Egress
+  egress:
+    # DNS only. Established replies to the WAF are allowed by conntrack and do
+    # not need an egress rule.
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: f5-waf-demo
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+    # baseline is enforceable for both pods; the WAF image (nginx) runs its
+    # master as root and cannot meet "restricted". The vulnerable origin pod is
+    # separately locked down to the restricted profile in its own securityContext.
+    pod-security.kubernetes.io/enforce: baseline

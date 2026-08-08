@@ -22,6 +22,16 @@ from urllib.parse import urlparse, parse_qs
 
 PORT = int(os.environ.get("PORT", "8080"))
 
+# SAFE_MODE simulates the outcome of the file-read and command-injection flaws
+# instead of really touching the filesystem or a shell. The WAF still sees and
+# blocks the exact same malicious input -- only the origin's "successful"
+# response is faked. Turn this ON whenever the origin might be reachable from an
+# untrusted network (e.g. exposed via a public Ingress) so that a WAF bypass
+# cannot cause real damage. Leave it OFF for the local Docker demo where the
+# real exploit behavior is the point. SQLi and XSS are always simulated.
+SAFE_MODE = os.environ.get("SAFE_MODE", "").strip().lower() in ("1", "true", "yes", "on")
+SHELL_METACHARS = (";", "|", "&", "$(", "`", "&&", "||", "\n")
+
 # A pretend customer database. The "secret" row is what an attacker is after.
 FAKE_DB = [
     {"id": 1, "name": "Checking Account", "category": "deposit", "balance": "$4,210.55"},
@@ -107,6 +117,16 @@ class Handler(BaseHTTPRequestHandler):
         # ---- Path traversal: reads whatever path is given ----
         if path == "/download":
             fname = q.get("file", ["welcome.txt"])[0]
+            if SAFE_MODE:
+                # Never open a real path. Fake the classic outcome so the
+                # before/after story still reads, with nothing real to steal.
+                if ".." in fname or fname.startswith("/"):
+                    content = ("root:x:0:0:root:/root:/bin/bash\n"
+                               "daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n"
+                               "# (simulated /etc/passwd -- SAFE_MODE, no real file was read)\n")
+                    return self._send(200, content, "text/plain; charset=utf-8")
+                return self._send(200, "Welcome to Acme Bank. Your statement is ready.\n",
+                                  "text/plain; charset=utf-8")
             base = "/srv/statements"
             target = os.path.join(base, fname)  # no normalization/containment check
             try:
@@ -120,6 +140,19 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/ping":
             host = q.get("host", ["127.0.0.1"])[0]
             cmd = "ping -c 1 -W 1 " + host  # attacker controls the string
+            if SAFE_MODE:
+                # Never touch a shell. Fake command output so the injection
+                # "succeeds" visually without any real code execution.
+                if any(m in host for m in SHELL_METACHARS):
+                    combined = ("PING 127.0.0.1: 56 data bytes\n"
+                                "64 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.03 ms\n"
+                                "root\n# (simulated command output -- SAFE_MODE, no real shell ran)\n")
+                else:
+                    combined = ("PING %s: 56 data bytes\n"
+                                "64 bytes from %s: icmp_seq=0 ttl=64 time=0.04 ms\n"
+                                % (host, host))
+                body = f"<h2>Branch health check</h2><p>Ran:</p><code>{html.escape(cmd)}</code><pre>{html.escape(combined)}</pre>"
+                return self._send(200, PAGE.format(body=body))
             try:
                 out = subprocess.run(cmd, shell=True, capture_output=True,
                                      text=True, timeout=5)

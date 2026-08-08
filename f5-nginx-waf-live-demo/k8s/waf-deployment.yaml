@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: waf
+  labels:
+    app: waf
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: waf
+  template:
+    metadata:
+      labels:
+        app: waf
+    spec:
+      # OWASP Core Rule Set on ModSecurity-NGINX -- the license-free stand-in
+      # for F5 NGINX App Protect WAF. Swap this image + config for the real F5
+      # engine (see ../f5-app-protect/) without touching anything else.
+      automountServiceAccountToken: false
+      containers:
+        - name: waf
+          image: owasp/modsecurity-crs:nginx
+          env:
+            - name: BACKEND
+              value: "http://origin:8080"
+            - name: PORT
+              value: "8080"
+            - name: MODSEC_RULE_ENGINE
+              value: "On"
+            - name: PARANOIA
+              value: "1"
+            - name: ANOMALY_INBOUND
+              value: "5"
+            - name: ANOMALY_OUTBOUND
+              value: "4"
+            - name: BLOCKING_PARANOIA
+              value: "1"
+            - name: MODSEC_RESP_BODY_ACCESS
+              value: "On"
+            - name: MODSEC_AUDIT_ENGINE
+              value: "RelevantOnly"
+            - name: MODSEC_AUDIT_LOG
+              value: "/dev/stdout"
+            - name: SERVERTOKENS
+              value: "off"
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

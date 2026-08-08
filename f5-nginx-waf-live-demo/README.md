@@ -100,17 +100,41 @@ of CRS, see [`f5-app-protect/`](./f5-app-protect/). It needs an F5
 subscription or free 30-day trial and ships the real declarative policy,
 `nginx.conf`, and the three-container NAP v5 compose file.
 
+## Deploy it beyond your laptop
+
+| Where | How | Docs |
+|-------|-----|------|
+| **Local (Docker)** | `docker compose up` + `./run-demo.sh` | this file |
+| **Kubernetes (k3s)** | `kubectl apply -k k8s/` — origin + WAF pods, hardened, ingress `payments.fictionally.org` → WAF, NetworkPolicy containment | [`k8s/README.md`](./k8s/README.md) |
+| **A single node (SSH + Docker)** | WAF published on one port, origin internal | [`deploy/README.md`](./deploy/README.md) |
+
+> **`SAFE_MODE`** — the origin's file-read and command-injection flaws are
+> *real* by default (local Docker) so the exploit is genuine. On shared infra
+> (the k8s and node deployments) it runs with `SAFE_MODE=1`, which **simulates**
+> those exploit outcomes so a WAF bypass can't cause real damage. The WAF's
+> block/allow behavior is identical either way.
+
 ## Files
 
 ```
 f5-nginx-waf-live-demo/
 ├── docker-compose.yml     # origin (:8081) + WAF (:8082)
 ├── run-demo.sh            # the before/after test — this is the demo
-├── stop.sh               # tear everything down
-├── origin/               # the deliberately-vulnerable Acme Bank app (pure stdlib)
-│   ├── app.py
+├── stop.sh                # tear everything down
+├── origin/                # the deliberately-vulnerable Acme Bank app (pure stdlib)
+│   ├── app.py             #   (SAFE_MODE-aware; single source for all deploys)
 │   └── Dockerfile
-└── f5-app-protect/       # drop-in for the real F5 NGINX App Protect WAF v5
+├── k8s/                   # k3s deployment: pods, ingress, NetworkPolicy, Kustomize
+│   ├── kustomization.yaml
+│   ├── *-deployment.yaml / *-service.yaml / ingress.yaml / networkpolicy.yaml
+│   ├── origin-configmap.yaml   # generated from origin/app.py
+│   ├── test-ingress.sh
+│   └── README.md
+├── deploy/                # single-node (SSH + Docker) deployment
+│   ├── node-demo.compose.yml
+│   ├── test-node.sh
+│   └── README.md
+└── f5-app-protect/        # drop-in for the real F5 NGINX App Protect WAF v5
     ├── docker-compose.f5.yml
     ├── Dockerfile
     ├── nginx.conf
