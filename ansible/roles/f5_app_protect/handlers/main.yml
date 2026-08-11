@@ -1,0 +1,6 @@
+---
+- name: Reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+  when: f5_app_protect_reload_nginx | bool

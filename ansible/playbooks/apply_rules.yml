@@ -1,0 +1,7 @@
+---
+# Compile and apply signature rule packs / per-ID overrides
+- name: Apply F5 App Protect WAF rules
+  hosts: waf_edges
+  become: true
+  roles:
+    - role: f5_waf_rules

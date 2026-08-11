@@ -1,0 +1,6 @@
+---
+- name: Reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+  when: f5_waf_policies_reload_nginx | bool

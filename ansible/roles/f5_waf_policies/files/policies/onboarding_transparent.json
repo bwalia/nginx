@@ -1,0 +1,16 @@
+{
+  "policy": {
+    "name": "onboarding_transparent",
+    "template": { "name": "POLICY_TEMPLATE_NGINX_BASE" },
+    "enforcementMode": "transparent",
+    "signature-sets": [
+      { "name": "All Signatures", "alarm": true, "block": false }
+    ],
+    "blocking-settings": {
+      "violations": [
+        { "name": "VIOL_ATTACK_SIGNATURE", "alarm": true, "block": false },
+        { "name": "VIOL_BOT_CLIENT", "alarm": true, "block": false }
+      ]
+    }
+  }
+}

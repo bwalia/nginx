@@ -1,0 +1,49 @@
+---
+- name: Ensure policy conf directory exists
+  ansible.builtin.file:
+    path: "{{ f5_waf_policies_conf_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Validate policy sources on controller
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ role_path }}/../../python/scripts/validate_policy.py"
+      - "{{ role_path }}/files/policies/{{ item }}.json"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  when: f5_waf_policies_validate | bool
+  loop: "{{ f5_waf_policies_deploy }}"
+
+- name: Deploy WAF policy JSON files
+  ansible.builtin.copy:
+    src: "policies/{{ item }}.json"
+    dest: "{{ f5_waf_policies_conf_dir }}/{{ item }}.json"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ f5_waf_policies_deploy }}"
+  notify: Reload nginx
+
+- name: Render per-server App Protect bindings
+  ansible.builtin.template:
+    src: server_binding.conf.j2
+    dest: "{{ f5_waf_policies_nginx_conf_d }}/20-waf-{{ item.server_name | regex_replace('[^A-Za-z0-9_.-]', '_') }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ f5_waf_policy_bindings }}"
+  loop_control:
+    label: "{{ item.server_name }}"
+  notify: Reload nginx
+
+- name: Validate nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  when:
+    - f5_waf_policies_validate | bool
+    - f5_waf_policy_bindings | length > 0

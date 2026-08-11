@@ -1,0 +1,15 @@
+---
+# Role: f5_app_protect
+# Installs / configures NGINX Plus App Protect WAF on a managed host.
+galaxy_info:
+  role_name: f5_app_protect
+  author: Meridian Platform
+  description: Manage F5 App Protect (NGINX WAF) package and base NGINX integration
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions: ["22.04", "24.04"]
+    - name: EL
+      versions: ["8", "9"]
+dependencies: []

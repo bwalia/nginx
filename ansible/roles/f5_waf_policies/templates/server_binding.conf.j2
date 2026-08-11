@@ -1,0 +1,24 @@
+# Managed by Ansible role f5_waf_policies — {{ item.server_name }}
+server {
+    listen {{ item.listen | default('443 ssl http2') }};
+    server_name {{ item.server_name }};
+
+    app_protect_enable on;
+    app_protect_policy_file "{{ f5_waf_policies_conf_dir }}/{{ item.policy }}.json";
+    app_protect_security_log_enable on;
+    app_protect_security_log "{{ f5_waf_policies_conf_dir }}/{{ f5_waf_policies_log_profile }}" {{ item.log_destination | default(f5_waf_policies_log_destination) }};
+
+{% if item.enable_dos | default(false) | bool %}
+    app_protect_dos_enable on;
+    app_protect_dos_policy_file "{{ item.dos_policy_file | default('/etc/app_protect_dos/policy.json') }}";
+{% endif %}
+
+{% set locations = item.locations | default([{'path': '/', 'policy': item.policy, 'upstream': item.upstream | default('http://127.0.0.1:8080')}]) %}
+{% for loc in locations %}
+    location {{ loc.path }} {
+        app_protect_enable on;
+        app_protect_policy_file "{{ f5_waf_policies_conf_dir }}/{{ loc.policy | default(item.policy) }}.json";
+        proxy_pass {{ loc.upstream | default(item.upstream) | default('http://127.0.0.1:8080') }};
+    }
+{% endfor %}
+}

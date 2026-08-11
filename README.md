@@ -107,6 +107,7 @@ same topology, same tests, just a different WAF image.
 | Directory | What it is |
 |-----------|-----------|
 | [`f5-app-protect-demo/`](./f5-app-protect-demo/) | Interactive React walkthrough of F5 WAF for NGINX features (educational simulation) |
+| [`ansible/`](./ansible/) | Ansible roles to manage App Protect, deploy policies, bind servers, and apply signature rules by ID (+ pytest) |
 | [`kubernetes-demo/`](./kubernetes-demo/) | Kubernetes deployment/service manifests and notes |
 | [`terraform-ec2-demo/`](./terraform-ec2-demo/) | Terraform EC2 provisioning demo |
 

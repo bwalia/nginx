@@ -1,0 +1,53 @@
+{
+  "name": "core-attack-pack",
+  "version": "2026.08.01",
+  "rules": [
+    {
+      "id": "200001475",
+      "name": "SQL Injection (Union)",
+      "set": "SQL Injection Signatures",
+      "severity": "critical",
+      "accuracy": "high",
+      "action": "block",
+      "enabled": true,
+      "tags": ["sqli", "owasp-a03"]
+    },
+    {
+      "id": "200000098",
+      "name": "Cross Site Scripting",
+      "set": "XSS Signatures",
+      "severity": "high",
+      "accuracy": "medium",
+      "action": "block",
+      "enabled": true,
+      "tags": ["xss", "owasp-a03"]
+    },
+    {
+      "id": "200003833",
+      "name": "Command Execution",
+      "set": "Command Execution Signatures",
+      "severity": "critical",
+      "action": "block",
+      "enabled": true,
+      "tags": ["rce"]
+    },
+    {
+      "id": "200009999",
+      "name": "Noisy low-value signature",
+      "set": "Custom",
+      "severity": "low",
+      "action": "alarm",
+      "enabled": true,
+      "tags": ["staging-candidate"]
+    },
+    {
+      "id": "200004001",
+      "name": "SSRF metadata probe",
+      "set": "SSRF Signatures",
+      "severity": "critical",
+      "action": "block",
+      "enabled": true,
+      "tags": ["ssrf"]
+    }
+  ]
+}

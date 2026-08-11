@@ -1,0 +1,10 @@
+# Managed by Ansible role f5_app_protect
+# Ensure load_module {{ f5_app_protect_module_path }}; is present in the main nginx.conf.
+
+{% if f5_app_protect_enable_global | bool %}
+app_protect_enable on;
+{% endif %}
+{% if f5_app_protect_security_log_enable | bool %}
+app_protect_security_log_enable on;
+app_protect_security_log "{{ f5_app_protect_conf_dir }}/{{ f5_app_protect_default_log_profile }}" {{ f5_app_protect_syslog_destination }};
+{% endif %}

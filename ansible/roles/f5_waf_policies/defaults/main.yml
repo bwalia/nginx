@@ -1,0 +1,33 @@
+---
+f5_waf_policies_conf_dir: /etc/app_protect/conf
+f5_waf_policies_nginx_conf_d: /etc/nginx/conf.d
+f5_waf_policies_validate: true
+f5_waf_policies_reload_nginx: true
+
+# Logical policy names mapped to files under roles/f5_waf_policies/files/policies/
+f5_waf_policies_deploy:
+  - baseline_blocking
+  - ob_fapi_blocking
+  - rib_blocking_pci
+  - onboarding_transparent
+
+# Server bindings: domain + default policy + optional per-location overrides
+# Example:
+# f5_waf_policy_bindings:
+#   - server_name: api.meridianbank.example
+#     listen: "443 ssl http2"
+#     policy: ob_fapi_blocking
+#     upstream: http://ob-api-gateway
+#     enable_dos: false
+#     locations:
+#       - path: /open-banking/
+#         policy: ob_fapi_blocking
+#         upstream: http://ob-api-gateway
+#       - path: /healthz
+#         policy: onboarding_transparent
+#         upstream: http://127.0.0.1:8080
+f5_waf_policy_bindings: []
+
+f5_waf_policies_log_profile: log_default.json
+f5_waf_policies_log_destination: "syslog:server=127.0.0.1:514"
+f5_waf_policies_global_policy: baseline_blocking

@@ -1,0 +1,28 @@
+{
+  "policy": {
+    "name": "baseline_blocking",
+    "template": { "name": "POLICY_TEMPLATE_NGINX_BASE" },
+    "applicationLanguage": "utf-8",
+    "enforcementMode": "blocking",
+    "signature-sets": [
+      { "name": "SQL Injection Signatures", "alarm": true, "block": true },
+      { "name": "XSS Signatures", "alarm": true, "block": true },
+      { "name": "Command Execution Signatures", "alarm": true, "block": true },
+      { "name": "Path Traversal Signatures", "alarm": true, "block": true }
+    ],
+    "bot-defense": {
+      "settings": { "isEnabled": true },
+      "mitigations": {
+        "classes": [
+          { "name": "trusted-bot", "action": "alarm" },
+          { "name": "malicious-bot", "action": "block" }
+        ]
+      }
+    },
+    "data-guard": {
+      "enabled": true,
+      "maskData": true,
+      "creditCardNumbers": true
+    }
+  }
+}

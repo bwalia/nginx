@@ -1,0 +1,19 @@
+---
+f5_app_protect_state: present
+f5_app_protect_conf_dir: /etc/app_protect/conf
+f5_app_protect_log_dir: /var/log/app_protect
+f5_app_protect_nginx_conf_d: /etc/nginx/conf.d
+f5_app_protect_module_path: modules/ngx_http_app_protect_module.so
+f5_app_protect_manage_packages: true
+f5_app_protect_packages:
+  - app-protect
+  - app-protect-attack-signatures
+  - app-protect-bot-signatures
+  - app-protect-threat-campaigns
+  - app-protect-geoip
+f5_app_protect_security_log_enable: true
+f5_app_protect_default_log_profile: log_default.json
+f5_app_protect_syslog_destination: "syslog:server=127.0.0.1:514"
+f5_app_protect_validate_nginx: true
+f5_app_protect_reload_nginx: true
+f5_app_protect_enable_global: true

@@ -1,0 +1,19 @@
+---
+f5_waf_rules_conf_dir: /etc/app_protect/conf
+f5_waf_rules_pack_name: core-attack-pack
+f5_waf_rules_pack_file: core-attack-pack.json
+f5_waf_rules_compiled_file: compiled_signature_sets.json
+f5_waf_rules_validate: true
+
+# Per-ID overrides applied on top of the pack before compile
+# f5_waf_rule_overrides:
+#   - id: "200009999"
+#     action: disable
+#     enabled: false
+#   - id: "200000098"
+#     action: alarm
+f5_waf_rule_overrides: []
+
+# Optional: merge compiled sets into an existing policy name on the host
+f5_waf_rules_target_policy: ""
+f5_waf_rules_reload_nginx: true

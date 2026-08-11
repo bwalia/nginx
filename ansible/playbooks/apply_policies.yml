@@ -1,0 +1,7 @@
+---
+# Deploy / update WAF policies and server bindings only
+- name: Apply F5 App Protect policies
+  hosts: waf_edges
+  become: true
+  roles:
+    - role: f5_waf_policies

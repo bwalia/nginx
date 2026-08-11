@@ -1,0 +1,28 @@
+{
+  "policy": {
+    "name": "rib_blocking_pci",
+    "template": { "name": "POLICY_TEMPLATE_NGINX_BASE" },
+    "enforcementMode": "blocking",
+    "signature-sets": [
+      { "name": "SQL Injection Signatures", "alarm": true, "block": true },
+      { "name": "XSS Signatures", "alarm": true, "block": true },
+      { "name": "Command Execution Signatures", "alarm": true, "block": true },
+      { "name": "SSRF Signatures", "alarm": true, "block": true }
+    ],
+    "bot-defense": {
+      "settings": { "isEnabled": true }
+    },
+    "data-guard": {
+      "enabled": true,
+      "maskData": true,
+      "creditCardNumbers": true,
+      "usSocialSecurityNumbers": true
+    },
+    "brute-force-attack-preventions": [
+      {
+        "url": { "name": "/auth/login" },
+        "sourceBasedProtectionDetectionPeriod": 60
+      }
+    ]
+  }
+}

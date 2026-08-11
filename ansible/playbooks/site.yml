@@ -1,0 +1,9 @@
+---
+# Full edge bootstrap: App Protect base + policies + rules
+- name: Configure F5 App Protect WAF edge
+  hosts: waf_edges
+  become: true
+  roles:
+    - role: f5_app_protect
+    - role: f5_waf_policies
+    - role: f5_waf_rules

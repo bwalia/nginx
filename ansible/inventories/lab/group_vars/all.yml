@@ -1,0 +1,51 @@
+---
+f5_app_protect_manage_packages: false
+f5_app_protect_validate_nginx: false
+f5_app_protect_reload_nginx: false
+
+f5_waf_policies_validate: true
+f5_waf_policies_reload_nginx: false
+f5_waf_policies_conf_dir: /tmp/app_protect/conf
+f5_waf_policies_nginx_conf_d: /tmp/nginx/conf.d
+
+f5_waf_policies_deploy:
+  - baseline_blocking
+  - ob_fapi_blocking
+  - rib_blocking_pci
+  - onboarding_transparent
+
+f5_waf_policy_bindings:
+  - server_name: api.meridianbank.example
+    listen: "443 ssl http2"
+    policy: ob_fapi_blocking
+    upstream: http://ob-api-gateway
+    locations:
+      - path: /open-banking/
+        policy: ob_fapi_blocking
+        upstream: http://ob-api-gateway
+      - path: /healthz
+        policy: onboarding_transparent
+        upstream: http://127.0.0.1:8080
+
+  - server_name: secure.meridianbank.example
+    policy: rib_blocking_pci
+    upstream: http://rib-web-tier
+    enable_dos: true
+    dos_policy_file: /etc/app_protect_dos/login.json
+    locations:
+      - path: /
+        policy: rib_blocking_pci
+        upstream: http://rib-web-tier
+      - path: /auth/
+        policy: rib_blocking_pci
+        upstream: http://rib-web-tier
+
+f5_waf_rules_conf_dir: /tmp/app_protect/conf
+f5_waf_rules_reload_nginx: false
+f5_waf_rules_target_policy: baseline_blocking
+f5_waf_rule_overrides:
+  - id: "200009999"
+    action: disable
+    enabled: false
+  - id: "200000098"
+    action: alarm

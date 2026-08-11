@@ -1,0 +1,48 @@
+---
+- name: Assert supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family in ["Debian", "RedHat"]
+    fail_msg: "f5_app_protect supports Debian/Ubuntu and RHEL/Rocky only"
+
+- name: Ensure App Protect directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ f5_app_protect_conf_dir }}"
+    - "{{ f5_app_protect_log_dir }}"
+    - "{{ f5_app_protect_nginx_conf_d }}"
+
+- name: Install App Protect packages
+  ansible.builtin.package:
+    name: "{{ f5_app_protect_packages }}"
+    state: "{{ f5_app_protect_state }}"
+  when: f5_app_protect_manage_packages | bool
+  notify: Reload nginx
+
+- name: Deploy default security log profile
+  ansible.builtin.copy:
+    src: log_default.json
+    dest: "{{ f5_app_protect_conf_dir }}/{{ f5_app_protect_default_log_profile }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Deploy App Protect global NGINX snippet
+  ansible.builtin.template:
+    src: app_protect_global.conf.j2
+    dest: "{{ f5_app_protect_nginx_conf_d }}/00-app-protect-global.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Validate nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  when: f5_app_protect_validate_nginx | bool

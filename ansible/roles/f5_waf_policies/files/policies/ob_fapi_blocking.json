@@ -1,0 +1,30 @@
+{
+  "policy": {
+    "name": "ob_fapi_blocking",
+    "template": { "name": "POLICY_TEMPLATE_NGINX_BASE" },
+    "enforcementMode": "blocking",
+    "open-api-files": [
+      { "link": "file:///etc/app_protect/conf/obie-v3.1.yaml" }
+    ],
+    "signature-sets": [
+      { "name": "SQL Injection Signatures", "alarm": true, "block": true },
+      { "name": "XSS Signatures", "alarm": true, "block": true }
+    ],
+    "json-profiles": [
+      {
+        "name": "OB_JSON",
+        "defenseAttributes": {
+          "maximumTotalLengthOfJSONData": 65536,
+          "maximumStructureDepth": 12
+        }
+      }
+    ],
+    "blocking-settings": {
+      "violations": [
+        { "name": "VIOL_JSON_FORMAT", "alarm": true, "block": true },
+        { "name": "VIOL_JWT", "alarm": true, "block": true },
+        { "name": "VIOL_HTTP_PROTOCOL", "alarm": true, "block": true }
+      ]
+    }
+  }
+}
