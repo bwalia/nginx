@@ -32,6 +32,7 @@ enforcement (PUT/DELETE).
 | **Ingress `payments.fictionally.org`** (AFTER) | Traefik → **in-cluster WAF pod** (`service waf:8080`) → in-cluster origin pod. Fully in-cluster, no node hop. Verified via WAF-pod logs. 16/16. |
 | **Ingress `direct.payments.fictionally.org`** (BEFORE) | Traefik → **`origin-direct`** (2nd origin, **no WAF**), gated by Traefik basic-auth (`before-basic-auth`). Same app → attacks succeed (200). Creds: `demo` / see `before-basic-auth` Secret. DNS record not yet added. |
 | **Public URL** | `https://payments.fictionally.org/` **live** via Cloudflare CNAME → `pop0.wslproxy.com` → wslproxy tunnel → Traefik. HTTPS attacks blocked 403, landing 200. Tunnel serves a **self-signed cert** (browser warning) — real cert not yet provisioned. |
+| **Public URL `waf.pop0.uk`** | **live** at `https://waf.pop0.uk/` (valid Let's Encrypt cert) via the production **wslproxy edge** on pop0 (`72.62.211.28`/cloud001). wslproxy server+rule → NodePort `30085` → **edge** WAF+origin pods pinned to cloud001 (`k8s/pop0-edge.yaml`; the pop is network-isolated from home). Attacks 403, legit 200. Config saved in `wslproxy/`. |
 | **WAF console (Grafana)** | `f5-waf-demo` ns: **Loki + Grafana + promtail sidecar** on the WAF pod. Audit JSON → file → promtail → Loki → dashboard *F5 NGINX WAF — Live Violations*. Access: `kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000` → http://localhost:3300 (admin / `grafana-admin` Secret). Also published (pre-DNS) at `waf-console.fictionally.org`, gated by Traefik basic-auth (`console-basic-auth`, user `demo`) + Grafana login. |
 | **kubeconfig** | `~/.kube/k3s1.yaml` (server `https://192.168.1.104:6443`). |
 | **Git** | Branch `f5-nginx-waf-live-demo` merged to `main`; pushed to `origin/main`. |
@@ -39,6 +40,7 @@ enforcement (PUT/DELETE).
 ### How to reach the demos
 - Local: `http://localhost:8081` (raw) vs `http://localhost:8082` (WAF)
 - Node WAF: `http://192.168.1.140:9080/`
+- wslproxy edge (public): `https://waf.pop0.uk/` (valid LE cert — real browser-trusted)
 - Ingress AFTER (public): `https://payments.fictionally.org/` (self-signed cert — use `curl -k`)
 - Ingress BEFORE (internal): `curl -u demo:<pw> -H 'Host: direct.payments.fictionally.org' http://192.168.1.104/...`
 - Ingress AFTER (internal): `curl -H 'Host: payments.fictionally.org' http://192.168.1.104/`

@@ -15,3 +15,4 @@ resources:
   - networkpolicy.yaml
   - before-after.yaml
   - observability.yaml
+  - pop0-edge.yaml
