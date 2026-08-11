@@ -372,3 +372,55 @@ spec:
     - name: http
       port: 3000
       targetPort: http
+---
+# Optional public access to the WAF console. Grafana already requires a login;
+# a Traefik basic-auth gate is layered in front so anonymous internet scanners
+# never reach Grafana directly. Reach it at https://waf-console.fictionally.org/
+# once the Cloudflare CNAME (-> pop0.wslproxy.com, DNS-only) is added. Same demo
+# credential as the "before" host: user `demo`.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: console-basic-auth
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+type: Opaque
+stringData:
+  users: |
+    demo:$2y$05$qG3iKSrkwesTbDnBFnXyu.rrnGIyDLhT4ybmOHN1KCM.sHNlB.vVy
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: console-basic-auth
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+spec:
+  basicAuth:
+    secret: console-basic-auth
+    realm: "F5 WAF demo -- WAF console"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: waf-console
+  labels:
+    app.kubernetes.io/part-of: f5-nginx-waf-demo
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: waf-console.fictionally.org
+    external-dns.alpha.kubernetes.io/target: pop0.wslproxy.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    traefik.ingress.kubernetes.io/router.middlewares: f5-waf-demo-console-basic-auth@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: waf-console.fictionally.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000

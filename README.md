@@ -82,7 +82,8 @@ The k3s deployment also publishes a **public before/after** and a **WAF console*
 - **Grafana WAF console** — a promtail sidecar ships the WAF's ModSecurity audit
   log into Loki; Grafana serves a live *F5 NGINX WAF — Live Violations* dashboard.
   `kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000` → http://localhost:3300
-  (admin / `grafana-admin` Secret). See [`k8s/README.md`](./f5-nginx-waf-live-demo/k8s/README.md).
+  (admin / `grafana-admin` Secret), or publicly at `waf-console.fictionally.org`
+  (basic-auth gated, user `demo`). See [`k8s/README.md`](./f5-nginx-waf-live-demo/k8s/README.md).
 
 Tear down: `kubectl delete -k f5-nginx-waf-live-demo/k8s/`
 

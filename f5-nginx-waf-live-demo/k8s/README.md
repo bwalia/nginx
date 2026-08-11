@@ -93,6 +93,11 @@ kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000
 # http://localhost:3300   (admin / admin-password from the grafana-admin Secret)
 ```
 
+It is also published (optionally) at **`https://waf-console.fictionally.org/`**,
+gated by a Traefik basic-auth Middleware (`console-basic-auth`, user `demo`) in
+front of Grafana's own login. Add a Cloudflare record
+`waf-console.fictionally.org CNAME pop0.wslproxy.com` (DNS-only) to resolve it.
+
 CLI equivalents if you'd rather not open a browser:
 
 ```bash

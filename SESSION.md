@@ -32,7 +32,7 @@ enforcement (PUT/DELETE).
 | **Ingress `payments.fictionally.org`** (AFTER) | Traefik → **in-cluster WAF pod** (`service waf:8080`) → in-cluster origin pod. Fully in-cluster, no node hop. Verified via WAF-pod logs. 16/16. |
 | **Ingress `direct.payments.fictionally.org`** (BEFORE) | Traefik → **`origin-direct`** (2nd origin, **no WAF**), gated by Traefik basic-auth (`before-basic-auth`). Same app → attacks succeed (200). Creds: `demo` / see `before-basic-auth` Secret. DNS record not yet added. |
 | **Public URL** | `https://payments.fictionally.org/` **live** via Cloudflare CNAME → `pop0.wslproxy.com` → wslproxy tunnel → Traefik. HTTPS attacks blocked 403, landing 200. Tunnel serves a **self-signed cert** (browser warning) — real cert not yet provisioned. |
-| **WAF console (Grafana)** | `f5-waf-demo` ns: **Loki + Grafana + promtail sidecar** on the WAF pod. Audit JSON → file → promtail → Loki → dashboard *F5 NGINX WAF — Live Violations*. Access: `kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000` → http://localhost:3300 (admin / `grafana-admin` Secret). |
+| **WAF console (Grafana)** | `f5-waf-demo` ns: **Loki + Grafana + promtail sidecar** on the WAF pod. Audit JSON → file → promtail → Loki → dashboard *F5 NGINX WAF — Live Violations*. Access: `kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000` → http://localhost:3300 (admin / `grafana-admin` Secret). Also published (pre-DNS) at `waf-console.fictionally.org`, gated by Traefik basic-auth (`console-basic-auth`, user `demo`) + Grafana login. |
 | **kubeconfig** | `~/.kube/k3s1.yaml` (server `https://192.168.1.104:6443`). |
 | **Git** | Branch `f5-nginx-waf-live-demo` merged to `main`; pushed to `origin/main`. |
 
@@ -76,6 +76,8 @@ enforcement (PUT/DELETE).
 - [x] `git push` `main` to origin — done; in sync at latest commit.
 - [ ] Add Cloudflare record `direct.payments.fictionally.org CNAME pop0.wslproxy.com`
       (DNS-only) to reach the gated "before WAF" host publicly.
+- [ ] Add Cloudflare record `waf-console.fictionally.org CNAME pop0.wslproxy.com`
+      (DNS-only) to reach the Grafana WAF console publicly (basic-auth gated).
 - [ ] Provision a real TLS cert for `payments.fictionally.org` (tunnel currently
       serves a self-signed cert, so browsers warn).
 - [ ] (Security) The `origin` remote URL embeds a GitHub PAT — rewrite to a
