@@ -76,7 +76,7 @@ curl -H 'Host: payments.fictionally.org' \
   "http://192.168.1.104/search?q=1'%20OR%20'1'='1"        # 403
 ```
 
-Add a Cloudflare record `direct.payments.fictionally.org CNAME pop0.wslproxy.com`
+Add a Cloudflare record `direct.payments.fictionally.org CNAME lon1.pop0.uk`
 (DNS-only) to reach the "before" host publicly.
 
 ## WAF console — see logs & violations (Grafana)
@@ -96,7 +96,7 @@ kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000
 It is also published (optionally) at **`https://waf-console.fictionally.org/`**,
 gated by a Traefik basic-auth Middleware (`console-basic-auth`, user `demo`) in
 front of Grafana's own login. Add a Cloudflare record
-`waf-console.fictionally.org CNAME pop0.wslproxy.com` (DNS-only) to resolve it.
+`waf-console.fictionally.org CNAME lon1.pop0.uk` (DNS-only) to resolve it.
 
 CLI equivalents if you'd rather not open a browser:
 
@@ -112,11 +112,11 @@ kubectl -n f5-waf-demo exec deploy/loki -- \
 
 **1. DNS is not automatic here.** The cluster's `external-dns` is filtered to
 `diytaxreturn.co.uk`, so it ignores `*.fictionally.org` ingresses. The existing
-`fictionally.org` names are individual Cloudflare CNAMEs → `pop0.wslproxy.com`
+`fictionally.org` names are individual Cloudflare CNAMEs → `lon1.pop0.uk`
 (there is no wildcard). The record for this demo has been added manually:
 
 ```
-payments.fictionally.org   CNAME   pop0.wslproxy.com   (DNS-only, not proxied)
+payments.fictionally.org   CNAME   lon1.pop0.uk   (DNS-only, not proxied)
 ```
 
 so `https://payments.fictionally.org/` is live through the wslproxy tunnel →

@@ -376,7 +376,7 @@ spec:
 # Optional public access to the WAF console. Grafana already requires a login;
 # a Traefik basic-auth gate is layered in front so anonymous internet scanners
 # never reach Grafana directly. Reach it at https://waf-console.fictionally.org/
-# once the Cloudflare CNAME (-> pop0.wslproxy.com, DNS-only) is added. Same demo
+# once the Cloudflare CNAME (-> lon1.pop0.uk, DNS-only) is added. Same demo
 # credential as the "before" host: user `demo`.
 apiVersion: v1
 kind: Secret
@@ -408,7 +408,7 @@ metadata:
     app.kubernetes.io/part-of: f5-nginx-waf-demo
   annotations:
     external-dns.alpha.kubernetes.io/hostname: waf-console.fictionally.org
-    external-dns.alpha.kubernetes.io/target: pop0.wslproxy.com
+    external-dns.alpha.kubernetes.io/target: lon1.pop0.uk
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
     traefik.ingress.kubernetes.io/router.middlewares: f5-waf-demo-console-basic-auth@kubernetescrd
 spec:

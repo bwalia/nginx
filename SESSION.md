@@ -31,7 +31,7 @@ enforcement (PUT/DELETE).
 | **k3s cluster `k3s1`** | Namespace `f5-waf-demo`: hardened origin + WAF pods, NetworkPolicy containment. Applied with `kubectl apply -k k8s/`. |
 | **Ingress `payments.fictionally.org`** (AFTER) | Traefik → **in-cluster WAF pod** (`service waf:8080`) → in-cluster origin pod. Fully in-cluster, no node hop. Verified via WAF-pod logs. 16/16. |
 | **Ingress `direct.payments.fictionally.org`** (BEFORE) | Traefik → **`origin-direct`** (2nd origin, **no WAF**), gated by Traefik basic-auth (`before-basic-auth`). Same app → attacks succeed (200). Creds: `demo` / see `before-basic-auth` Secret. DNS record not yet added. |
-| **Public URL** | `https://payments.fictionally.org/` **live** via Cloudflare CNAME → `pop0.wslproxy.com` → wslproxy tunnel → Traefik. HTTPS attacks blocked 403, landing 200. Tunnel serves a **self-signed cert** (browser warning) — real cert not yet provisioned. |
+| **Public URL** | `https://payments.fictionally.org/` **live** via Cloudflare CNAME → `lon1.pop0.uk` → wslproxy tunnel → Traefik. HTTPS attacks blocked 403, landing 200. Tunnel serves a **self-signed cert** (browser warning) — real cert not yet provisioned. |
 | **Public URL `waf.pop0.uk`** | **live** at `https://waf.pop0.uk/` (valid Let's Encrypt cert) via the production **wslproxy edge** on pop0 (`72.62.211.28`/cloud001). wslproxy server+rule → NodePort `30085` → **edge** WAF+origin pods pinned to cloud001 (`k8s/pop0-edge.yaml`; the pop is network-isolated from home). Attacks 403, legit 200. Config saved in `wslproxy/`. |
 | **WAF console (Grafana)** | `f5-waf-demo` ns: **Loki + Grafana + promtail sidecar** on the WAF pod. Audit JSON → file → promtail → Loki → dashboard *F5 NGINX WAF — Live Violations*. Access: `kubectl -n f5-waf-demo port-forward svc/grafana 3300:3000` → http://localhost:3300 (admin / `grafana-admin` Secret). Also published (pre-DNS) at `waf-console.fictionally.org`, gated by Traefik basic-auth (`console-basic-auth`, user `demo`) + Grafana login. |
 | **kubeconfig** | `~/.kube/k3s1.yaml` (server `https://192.168.1.104:6443`). |
@@ -63,22 +63,22 @@ enforcement (PUT/DELETE).
   Test payloads are chosen to block at PL1.
 - **DNS:** the cluster's external-dns is filtered to `diytaxreturn.co.uk`, so it
   will NOT auto-create `payments.fictionally.org`. `*.fictionally.org` are manual
-  Cloudflare CNAMEs → `pop0.wslproxy.com` (no wildcard). The `payments` record was
+  Cloudflare CNAMEs → `lon1.pop0.uk` (no wildcard). The `payments` record was
   added manually and now resolves.
-- **wslproxy tunnel:** `pop0.wslproxy.com` (18.133.126.242) 301-redirects all HTTP
+- **wslproxy tunnel:** `lon1.pop0.uk` (18.133.126.242) 301-redirects all HTTP
   → HTTPS (normal), then tunnels HTTPS into the cluster's Traefik, which routes
   `payments.fictionally.org` to the in-cluster WAF pod. Verified by a marked probe
   landing in the WAF-pod logs. Tunnel presents a self-signed default cert.
 
 ## Outstanding / next steps
 
-- [x] Add Cloudflare record `payments.fictionally.org CNAME pop0.wslproxy.com` —
+- [x] Add Cloudflare record `payments.fictionally.org CNAME lon1.pop0.uk` —
       done; `https://payments.fictionally.org/` is live and WAF-protected.
 - [x] Repoint ingress from node WAF to the in-cluster WAF pod — done (`waf:8080`).
 - [x] `git push` `main` to origin — done; in sync at latest commit.
-- [ ] Add Cloudflare record `direct.payments.fictionally.org CNAME pop0.wslproxy.com`
+- [ ] Add Cloudflare record `direct.payments.fictionally.org CNAME lon1.pop0.uk`
       (DNS-only) to reach the gated "before WAF" host publicly.
-- [ ] Add Cloudflare record `waf-console.fictionally.org CNAME pop0.wslproxy.com`
+- [ ] Add Cloudflare record `waf-console.fictionally.org CNAME lon1.pop0.uk`
       (DNS-only) to reach the Grafana WAF console publicly (basic-auth gated).
 - [ ] Provision a real TLS cert for `payments.fictionally.org` (tunnel currently
       serves a self-signed cert, so browsers warn).
