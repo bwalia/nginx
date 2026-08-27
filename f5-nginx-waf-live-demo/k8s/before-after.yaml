@@ -158,7 +158,7 @@ metadata:
     app.kubernetes.io/part-of: f5-nginx-waf-demo
   annotations:
     external-dns.alpha.kubernetes.io/hostname: direct.payments.fictionally.org
-    external-dns.alpha.kubernetes.io/target: pop0.wslproxy.com
+    external-dns.alpha.kubernetes.io/target: lon1.pop0.uk
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
     # Attach the basic-auth gate. Ref format is <namespace>-<middleware>@kubernetescrd.
     traefik.ingress.kubernetes.io/router.middlewares: f5-waf-demo-before-basic-auth@kubernetescrd

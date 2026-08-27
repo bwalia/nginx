@@ -8,7 +8,7 @@ metadata:
     # Matches the convention the other *.fictionally.org ingresses use so
     # external-dns publishes the record automatically (CNAME -> the wslproxy pop).
     external-dns.alpha.kubernetes.io/hostname: payments.fictionally.org
-    external-dns.alpha.kubernetes.io/target: pop0.wslproxy.com
+    external-dns.alpha.kubernetes.io/target: lon1.pop0.uk
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
 spec:
   ingressClassName: traefik
