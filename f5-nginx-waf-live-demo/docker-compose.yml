@@ -1,15 +1,31 @@
 name: f5-nginx-waf-demo
 
+# Public demo (primary): http://192.168.1.177:8083/  (API GW + WAF)
+#                        http://192.168.1.177:8081/  (open origin)
+#                        http://192.168.1.177:8082/  (CRS WAF)
+# HH aliases also published: :18081 / :18082 / :18083
+
+x-public-host: &public_host "192.168.1.177"
+
 services:
-  # ---------------------------------------------------------------------------
-  # The origin app, exposed DIRECTLY on :8081 with nothing in front of it.
-  # This is the "before" -- attacks land straight on vulnerable code.
-  # ---------------------------------------------------------------------------
   origin:
     build: ./origin
     container_name: waf-demo-origin
+    environment:
+      PORT: "8080"
+      STMT_DIR: /srv/statements
+      SAFE_MODE: "0"
+      PUBLIC_HOST: *public_host
+      PUBLIC_OPEN: "https://payments-open.fictionally.org"
+      PUBLIC_SECURE: "https://payments-secure.fictionally.org"
+      PUBLIC_APIGEE: "https://apigee-lab.fictionally.org"
+      PUBLIC_LAN_OPEN: "http://192.168.1.177:8081"
+      PUBLIC_LAN_APIGW: "http://192.168.1.177:8083"
+    volumes:
+      - ./lab/lab.html:/app/lab.html:ro
     ports:
-      - "8081:8080"     # http://localhost:8081  -> raw, unprotected origin
+      - "18081:8080"
+      - "8081:8080"
     expose:
       - "8080"
     healthcheck:
@@ -17,17 +33,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: always
 
-  # ---------------------------------------------------------------------------
-  # The SAME origin, but reached only through the WAF on :8082.
-  # This is the "after" -- F5 NGINX WAF inspects every request first.
-  #
-  # Out of the box this runs OWASP Core Rule Set on ModSecurity-NGINX, a
-  # license-free enforcement engine, so the before/after is reproducible on any
-  # machine. To run the real F5 NGINX App Protect WAF v5 engine instead (needs
-  # an F5 subscription/trial), see ./f5-app-protect/ -- same topology, same
-  # attacks, drop-in swap.
-  # ---------------------------------------------------------------------------
   waf:
     image: owasp/modsecurity-crs:nginx
     container_name: waf-demo-waf
@@ -35,12 +42,11 @@ services:
       origin:
         condition: service_healthy
     ports:
-      - "8082:8080"     # http://localhost:8082  -> origin, behind the WAF
+      - "18082:8080"
+      - "8082:8080"
     environment:
       BACKEND: "http://origin:8080"
       PORT: "8080"
-      # Blocking mode, anomaly scoring. Flip MODSEC_RULE_ENGINE to DetectionOnly
-      # to watch attacks get logged but passed through (useful for tuning).
       MODSEC_RULE_ENGINE: "On"
       PARANOIA: "1"
       ANOMALY_INBOUND: "5"
@@ -49,5 +55,42 @@ services:
       MODSEC_RESP_BODY_ACCESS: "On"
       MODSEC_AUDIT_ENGINE: "RelevantOnly"
       MODSEC_AUDIT_LOG: "/dev/stdout"
-      # Cosmetic: label blocked responses so the demo output is unmistakable.
       SERVERTOKENS: "off"
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  apigw:
+    build: ./apigw
+    container_name: waf-demo-apigw
+    depends_on:
+      origin:
+        condition: service_healthy
+    environment:
+      PORT: "8083"
+      ORIGIN_URL: "http://origin:8080"
+      LAB_HTML: "/demo/lab/lab.html"
+      FEATURES_HTML: "/demo/docs/features.html"
+      API_KEY: demo-f5-key
+      SPIKE_PER_MIN: "120"
+      PUBLIC_OPEN: "https://payments-open.fictionally.org"
+      PUBLIC_SECURE: "https://payments-secure.fictionally.org"
+      PUBLIC_APIGEE: "https://apigee-lab.fictionally.org"
+    volumes:
+      - ./lab/lab.html:/demo/lab/lab.html:ro
+      - ./docs/features.html:/demo/docs/features.html:ro
+      - ./apigw/gateway.py:/demo/gateway.py:ro
+    ports:
+      # Primary LAN / HH publish path
+      - "18083:8083"
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8083/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 8
+    restart: always
